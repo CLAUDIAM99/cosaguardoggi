@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Stasera cosa guardo? – Scegli film e cartoni</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <div class="app">
+    <!-- Schermata scelta modalità -->
+    <section class="screen screen-setup active" id="screen-setup">
+      <div class="setup-bg"></div>
+      <div class="setup-content">
+        <h1 class="setup-title">Stasera cosa guardo?</h1>
+        <p class="setup-subtitle">Scegli come trovare il film o il cartone perfetto</p>
+
+        <div class="setup-cards">
+          <button type="button" class="setup-card" id="btn-by-style" data-mode="style">
+            <span class="setup-card-icon">✨</span>
+            <span class="setup-card-title">Per stile o genere</span>
+            <span class="setup-card-desc">Commedia, animazione, thriller… scegli l'atmosfera</span>
+          </button>
+          <button type="button" class="setup-card" id="btn-by-similar" data-mode="similar">
+            <span class="setup-card-icon">🔍</span>
+            <span class="setup-card-title">Simile a un film</span>
+            <span class="setup-card-desc">Scrivi un film che ti è piaciuto e troveremo altri come quello</span>
+          </button>
+        </div>
+
+        <!-- Form stile -->
+        <div class="setup-form hidden" id="form-style">
+          <label class="form-label">Genere o stile</label>
+          <div class="genre-chips" id="genre-chips"></div>
+          <label class="form-label">Anche cartoni animati?</label>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="include-animation" class="toggle-input" checked>
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">Sì, includi animazione</span>
+          </label>
+          <button type="button" class="btn btn-primary btn-block" id="btn-start-style">Inizia a swipare</button>
+        </div>
+
+        <!-- Form simile a -->
+        <div class="setup-form hidden" id="form-similar">
+          <label class="form-label" for="similar-input">Nome del film che ti è piaciuto</label>
+          <input type="text" id="similar-input" class="field-input" placeholder="Es. Shrek, Inception, La La Land…" autocomplete="off">
+          <div id="similar-suggestions" class="similar-suggestions hidden"></div>
+          <button type="button" class="btn btn-primary btn-block" id="btn-start-similar" disabled>Cerca film simili</button>
+        </div>
+
+        <p class="setup-api-hint" id="api-hint"></p>
+      </div>
+    </section>
+
+    <!-- Schermata swipe Tinder -->
+    <section class="screen screen-swipe" id="screen-swipe">
+      <div class="swipe-header">
+        <span class="swipe-count" id="swipe-count">0 film</span>
+        <span class="swipe-likes" id="swipe-likes">❤️ 0</span>
+      </div>
+
+      <div class="cards-stack" id="cards-stack">
+        <div class="card-placeholder" id="card-placeholder">
+          <p>Caricamento film…</p>
+        </div>
+      </div>
+
+      <div class="swipe-actions">
+        <button type="button" class="action-btn action-nope" id="btn-nope" aria-label="Non mi interessa">
+          <span class="action-icon">✕</span>
+        </button>
+        <button type="button" class="action-btn action-like" id="btn-like" aria-label="Mi piace">
+          <span class="action-icon">♥</span>
+        </button>
+      </div>
+
+      <button type="button" class="btn btn-ghost btn-small" id="btn-see-matches">Vedi i miei match</button>
+    </section>
+
+    <!-- Schermata match / scelta finale -->
+    <section class="screen screen-matches" id="screen-matches">
+      <div class="matches-header">
+        <h2>I tuoi match stasera</h2>
+        <p>Scegli quale guardare tra quelli che ti sono piaciuti</p>
+      </div>
+      <div class="matches-list" id="matches-list"></div>
+      <div class="matches-empty hidden" id="matches-empty">
+        <p>Nessun match ancora. Torna indietro e swipa a destra sui film che ti piacciono!</p>
+        <button type="button" class="btn btn-primary" id="btn-back-to-swipe">Torna a swipare</button>
+      </div>
+      <button type="button" class="btn btn-ghost" id="btn-new-search">Nuova ricerca</button>
+    </section>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -36,6 +36,23 @@
         <div class="setup-form hidden" id="form-style">
           <label class="form-label">Genere o stile</label>
           <div class="genre-chips" id="genre-chips"></div>
+          <label class="form-label">Anno di uscita</label>
+          <select id="year-filter" class="field-input field-select">
+            <option value="">Tutti gli anni</option>
+            <option value="2020">Dal 2020 in poi</option>
+            <option value="2010">Dal 2010 in poi</option>
+            <option value="2000">Dal 2000 in poi</option>
+            <option value="1990">Dal 1990 in poi</option>
+            <option value="1980">Dal 1980 in poi</option>
+          </select>
+          <label class="form-label">Dove vuoi vederlo</label>
+          <div class="platform-chips" id="platform-chips">
+            <button type="button" class="chip chip-platform" data-provider-id="8">Netflix</button>
+            <button type="button" class="chip chip-platform" data-provider-id="9">Prime Video</button>
+            <button type="button" class="chip chip-platform" data-provider-id="337">Disney+</button>
+            <button type="button" class="chip chip-platform" data-provider-id="384">NOW</button>
+            <button type="button" class="chip chip-platform" data-provider-id="350">Apple TV+</button>
+          </div>
           <label class="form-label">Anche cartoni animati?</label>
           <label class="toggle-wrap">
             <input type="checkbox" id="include-animation" class="toggle-input" checked>
@@ -60,6 +77,7 @@
     <!-- Schermata swipe Tinder -->
     <section class="screen screen-swipe" id="screen-swipe">
       <div class="swipe-header">
+        <button type="button" class="back-button" id="btn-back-to-setup" aria-label="Torna alla scelta modalità">←</button>
         <span class="swipe-count" id="swipe-count">0 film</span>
         <span class="swipe-likes" id="swipe-likes">❤️ 0</span>
       </div>
@@ -85,8 +103,11 @@
     <!-- Schermata match / scelta finale -->
     <section class="screen screen-matches" id="screen-matches">
       <div class="matches-header">
-        <h2>I tuoi match stasera</h2>
-        <p>Scegli quale guardare tra quelli che ti sono piaciuti</p>
+        <button type="button" class="back-button" id="btn-back-from-matches" aria-label="Torna allo swipe">←</button>
+        <div class="matches-header-text">
+          <h2>I tuoi match stasera</h2>
+          <p>Scegli quale guardare tra quelli che ti sono piaciuti</p>
+        </div>
       </div>
       <div class="matches-list" id="matches-list"></div>
       <div class="matches-empty hidden" id="matches-empty">

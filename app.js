@@ -29,6 +29,8 @@
   let apiKey = (window.MOVIE_PICKER_CONFIG && window.MOVIE_PICKER_CONFIG.tmdbApiKey) || "";
   let genreIds = [];
   let includeAnimation = true;
+  let yearFilter = "";
+  let providerIds = [];
   let currentMovies = [];
   let likedMovies = [];
   let stackIndex = 0;
@@ -72,17 +74,25 @@
     return {
       id: m.id,
       title: m.title || m.name,
-      overview: (m.overview || "").slice(0, 200),
+      overview: m.overview || "",
       year: (m.release_date || m.first_air_date || "").slice(0, 4),
       poster: m.poster_path ? IMG_BASE + m.poster_path : IMG_FALLBACK,
-      genre_ids: m.genre_ids || []
+      genre_ids: m.genre_ids || [],
+      rating: m.vote_average || null
     };
   }
 
   async function loadDiscover() {
     const withGenres = genreIds.length ? genreIds.join(",") : null;
-    const params = { sort_by: "popularity.desc", page: 1 };
+    const params = { sort_by: "popularity.desc", page: 1, watch_region: "IT" };
     if (withGenres) params.with_genres = withGenres;
+    if (yearFilter) {
+      params["primary_release_date.gte"] = `${yearFilter}-01-01`;
+    }
+    if (providerIds.length) {
+      params.with_watch_providers = providerIds.join("|");
+      params.with_watch_monetization_types = "flatrate";
+    }
     const data = await tmdb("/discover/movie", params);
     return (data.results || []).map(normalizeMovie);
   }
@@ -127,6 +137,9 @@
 
     const toShow = currentMovies.slice(stackIndex, stackIndex + 3);
     toShow.forEach((movie, i) => {
+      const fullOverview = movie.overview || "";
+      const shortOverview =
+        fullOverview.length > 200 ? fullOverview.slice(0, 200) + "…" : fullOverview;
       const card = document.createElement("div");
       card.className = "movie-card stack-" + i;
       card.dataset.movieId = movie.id;
@@ -140,9 +153,23 @@
         <div class="card-body">
           <h3 class="card-title">${escapeHtml(movie.title)}</h3>
           <p class="card-meta">${movie.year ? movie.year : ""}</p>
-          <p class="card-overview">${escapeHtml(movie.overview)}</p>
+          <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10" : ""}</p>
+          <p class="card-overview" data-full="${escapeHtml(fullOverview)}" data-short="${escapeHtml(
+        shortOverview
+      )}">${escapeHtml(shortOverview)}</p>
+          <button type="button" class="card-overview-toggle">Mostra di più</button>
         </div>
       `;
+      const overviewEl = card.querySelector(".card-overview");
+      const toggleBtn = card.querySelector(".card-overview-toggle");
+      toggleBtn?.addEventListener("click", () => {
+        if (!overviewEl) return;
+        const expanded = overviewEl.classList.toggle("expanded");
+        const full = overviewEl.dataset.full || "";
+        const short = overviewEl.dataset.short || "";
+        overviewEl.textContent = expanded ? full : short;
+        toggleBtn.textContent = expanded ? "Mostra meno" : "Mostra di più";
+      });
       attachSwipeListeners(card, movie);
       stack.appendChild(card);
     });
@@ -273,6 +300,8 @@
   const setupCards = document.querySelector(".setup-cards");
   const formStyle = $("form-style");
   const formSimilar = $("form-similar");
+  const yearFilterSelect = $("year-filter");
+  const platformChipsWrap = $("platform-chips");
 
   $("btn-by-style")?.addEventListener("click", () => {
     $("btn-by-style")?.classList.add("hidden");
@@ -292,6 +321,19 @@
 
   $("include-animation")?.addEventListener("change", (e) => {
     includeAnimation = e.target.checked;
+  });
+
+  yearFilterSelect?.addEventListener("change", (e) => {
+    yearFilter = e.target.value;
+  });
+
+  platformChipsWrap?.querySelectorAll(".chip-platform")?.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      btn.classList.toggle("selected");
+      providerIds = Array.from(platformChipsWrap.querySelectorAll(".chip-platform.selected")).map(
+        (el) => +el.dataset.providerId
+      );
+    });
   });
 
   $("btn-start-style")?.addEventListener("click", async () => {
@@ -390,6 +432,14 @@
   $("btn-see-matches")?.addEventListener("click", () => {
     renderMatches();
     showScreen("screen-matches");
+  });
+
+  $("btn-back-to-setup")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+  });
+
+  $("btn-back-from-matches")?.addEventListener("click", () => {
+    showScreen("screen-swipe");
   });
 
   $("btn-back-to-swipe")?.addEventListener("click", () => showScreen("screen-swipe"));

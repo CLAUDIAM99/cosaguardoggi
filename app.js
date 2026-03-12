@@ -318,7 +318,6 @@
 
   similarInput?.addEventListener("input", () => {
     selectedMovieId = null;
-    $("btn-start-similar").disabled = true;
     clearTimeout(similarDebounce);
     const q = similarInput.value.trim();
     if (q.length < 2) {
@@ -339,7 +338,6 @@
             selectedMovieId = +el.dataset.id;
             similarInput.value = el.textContent.trim();
             similarSuggestions.classList.add("hidden");
-            $("btn-start-similar").disabled = false;
           });
         });
       } catch (_) {

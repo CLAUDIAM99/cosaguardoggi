@@ -31,6 +31,9 @@
   let includeAnimation = true;
   let yearFilter = "";
   let providerIds = [];
+  let ratingFilter = "";
+  let yearFilterSimilar = "";
+  let ratingFilterSimilar = "";
   let currentMovies = [];
   let likedMovies = [];
   let stackIndex = 0;
@@ -89,12 +92,25 @@
     if (yearFilter) {
       params["primary_release_date.gte"] = `${yearFilter}-01-01`;
     }
+    if (ratingFilter) {
+      params["vote_average.gte"] = Number(ratingFilter);
+      params["vote_count.gte"] = 100;
+    }
     if (providerIds.length) {
       params.with_watch_providers = providerIds.join("|");
-      params.with_watch_monetization_types = "flatrate";
+      params.with_watch_monetization_types = "flatrate|ads|buy|rent";
     }
     const data = await tmdb("/discover/movie", params);
-    return (data.results || []).map(normalizeMovie);
+    let movies = (data.results || []).map(normalizeMovie);
+    if (!movies.length && providerIds.length) {
+      // fallback: se nessun titolo su queste piattaforme, riprova senza filtro piattaforme
+      showApiHint("Nessun titolo trovato su queste piattaforme. Mostro anche altri servizi.", true);
+      delete params.with_watch_providers;
+      delete params.with_watch_monetization_types;
+      const dataFallback = await tmdb("/discover/movie", params);
+      movies = (dataFallback.results || []).map(normalizeMovie);
+    }
+    return movies;
   }
 
   async function searchMovie(query) {
@@ -104,7 +120,18 @@
 
   async function loadSimilar(movieId) {
     const data = await tmdb(`/movie/${movieId}/similar`, { page: 1 });
-    return (data.results || []).map(normalizeMovie);
+    let movies = (data.results || []).map(normalizeMovie);
+    if (yearFilterSimilar) {
+      movies = movies.filter((m) => {
+        const y = Number(m.year);
+        return !Number.isNaN(y) && y >= Number(yearFilterSimilar);
+      });
+    }
+    if (ratingFilterSimilar) {
+      const min = Number(ratingFilterSimilar);
+      movies = movies.filter((m) => (m.rating || 0) >= min);
+    }
+    return movies;
   }
 
   function renderGenreChips() {
@@ -153,23 +180,29 @@
         <div class="card-body">
           <h3 class="card-title">${escapeHtml(movie.title)}</h3>
           <p class="card-meta">${movie.year ? movie.year : ""}</p>
-          <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10" : ""}</p>
-          <p class="card-overview" data-full="${escapeHtml(fullOverview)}" data-short="${escapeHtml(
-        shortOverview
-      )}">${escapeHtml(shortOverview)}</p>
-          <button type="button" class="card-overview-toggle">Mostra di più</button>
+          <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10 (TMDB)" : ""}</p>
+          <p class="card-overview">${escapeHtml(shortOverview)}</p>
+          ${
+            fullOverview.length > 200
+              ? '<button type="button" class="card-overview-toggle">Mostra di più</button>'
+              : ""
+          }
         </div>
       `;
       const overviewEl = card.querySelector(".card-overview");
       const toggleBtn = card.querySelector(".card-overview-toggle");
-      toggleBtn?.addEventListener("click", () => {
-        if (!overviewEl) return;
-        const expanded = overviewEl.classList.toggle("expanded");
-        const full = overviewEl.dataset.full || "";
-        const short = overviewEl.dataset.short || "";
-        overviewEl.textContent = expanded ? full : short;
-        toggleBtn.textContent = expanded ? "Mostra meno" : "Mostra di più";
-      });
+      if (overviewEl && toggleBtn) {
+        overviewEl.dataset.full = fullOverview;
+        overviewEl.dataset.short = shortOverview;
+        toggleBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const expanded = overviewEl.classList.toggle("expanded");
+          const full = overviewEl.dataset.full || "";
+          const short = overviewEl.dataset.short || "";
+          overviewEl.textContent = expanded ? full : short;
+          toggleBtn.textContent = expanded ? "Mostra meno" : "Mostra di più";
+        });
+      }
       attachSwipeListeners(card, movie);
       stack.appendChild(card);
     });
@@ -302,6 +335,9 @@
   const formSimilar = $("form-similar");
   const yearFilterSelect = $("year-filter");
   const platformChipsWrap = $("platform-chips");
+  const yearFilterSimilarSelect = $("year-filter-similar");
+  const ratingFilterSimilarSelect = $("rating-filter-similar");
+  const ratingFilterSelect = $("rating-filter");
 
   $("btn-by-style")?.addEventListener("click", () => {
     $("btn-by-style")?.classList.add("hidden");
@@ -309,6 +345,20 @@
     setupCards?.classList.add("hidden");
     formStyle?.classList.remove("hidden");
     renderGenreChips();
+  });
+
+  $("btn-back-from-style")?.addEventListener("click", () => {
+    formStyle?.classList.add("hidden");
+    setupCards?.classList.remove("hidden");
+    $("btn-by-style")?.classList.remove("hidden");
+    $("btn-by-similar")?.classList.remove("hidden");
+  });
+
+  $("btn-back-from-similar")?.addEventListener("click", () => {
+    formSimilar?.classList.add("hidden");
+    setupCards?.classList.remove("hidden");
+    $("btn-by-style")?.classList.remove("hidden");
+    $("btn-by-similar")?.classList.remove("hidden");
   });
 
   $("btn-by-similar")?.addEventListener("click", () => {
@@ -327,6 +377,10 @@
     yearFilter = e.target.value;
   });
 
+  ratingFilterSelect?.addEventListener("change", (e) => {
+    ratingFilter = e.target.value;
+  });
+
   platformChipsWrap?.querySelectorAll(".chip-platform")?.forEach((btn) => {
     btn.addEventListener("click", () => {
       btn.classList.toggle("selected");
@@ -334,6 +388,14 @@
         (el) => +el.dataset.providerId
       );
     });
+  });
+
+  yearFilterSimilarSelect?.addEventListener("change", (e) => {
+    yearFilterSimilar = e.target.value;
+  });
+
+  ratingFilterSimilarSelect?.addEventListener("change", (e) => {
+    ratingFilterSimilar = e.target.value;
   });
 
   $("btn-start-style")?.addEventListener("click", async () => {

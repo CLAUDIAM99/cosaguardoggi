@@ -34,6 +34,7 @@
 
         <!-- Form stile -->
         <div class="setup-form hidden" id="form-style">
+          <button type="button" class="back-button" id="btn-back-from-style" aria-label="Torna alla home">←</button>
           <label class="form-label">Genere o stile</label>
           <div class="genre-chips" id="genre-chips"></div>
           <label class="form-label">Anno di uscita</label>
@@ -44,6 +45,13 @@
             <option value="2000">Dal 2000 in poi</option>
             <option value="1990">Dal 1990 in poi</option>
             <option value="1980">Dal 1980 in poi</option>
+          </select>
+          <label class="form-label">Punteggio minimo (TMDB)</label>
+          <select id="rating-filter" class="field-input field-select">
+            <option value="">Tutti i voti</option>
+            <option value="8">Da 8 in su</option>
+            <option value="7">Da 7 in su</option>
+            <option value="6">Da 6 in su</option>
           </select>
           <label class="form-label">Dove vuoi vederlo</label>
           <div class="platform-chips" id="platform-chips">
@@ -64,9 +72,26 @@
 
         <!-- Form simile a -->
         <div class="setup-form hidden" id="form-similar">
+          <button type="button" class="back-button" id="btn-back-from-similar" aria-label="Torna alla home">←</button>
           <label class="form-label" for="similar-input">Nome del film che ti è piaciuto</label>
           <input type="text" id="similar-input" class="field-input" placeholder="Es. Shrek, Inception, La La Land…" autocomplete="off">
           <div id="similar-suggestions" class="similar-suggestions hidden"></div>
+          <label class="form-label">Anno di uscita</label>
+          <select id="year-filter-similar" class="field-input field-select">
+            <option value="">Tutti gli anni</option>
+            <option value="2020">Dal 2020 in poi</option>
+            <option value="2010">Dal 2010 in poi</option>
+            <option value="2000">Dal 2000 in poi</option>
+            <option value="1990">Dal 1990 in poi</option>
+            <option value="1980">Dal 1980 in poi</option>
+          </select>
+          <label class="form-label">Punteggio minimo (TMDB)</label>
+          <select id="rating-filter-similar" class="field-input field-select">
+            <option value="">Tutti i voti</option>
+            <option value="8">Da 8 in su</option>
+            <option value="7">Da 7 in su</option>
+            <option value="6">Da 6 in su</option>
+          </select>
           <button type="button" class="btn btn-primary btn-block" id="btn-start-similar">Cerca film simili</button>
         </div>
 

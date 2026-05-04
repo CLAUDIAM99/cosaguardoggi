@@ -3,11 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Stasera cosa guardo? – Scegli film e cartoni</title>
+  <meta name="description" content="Decidi cosa guardare stasera: swipa film e cartoni, trova titoli simili a quelli che ami, scopri dove vederli in Italia. Gratis, senza account.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -16,25 +18,40 @@
     <section class="screen screen-setup active" id="screen-setup">
       <div class="setup-bg"></div>
       <div class="setup-content">
-        <h1 class="setup-title">Stasera cosa guardo?</h1>
-        <p class="setup-subtitle">Scegli come trovare il film o il cartone perfetto</p>
+        <header class="home-hero">
+          <p class="home-eyebrow">La tua serata, zero stress</p>
+          <h1 class="setup-title">Stasera cosa guardo?</h1>
+          <p class="setup-subtitle">Tre modi semplici per scegliere un film o un cartone — e capire subito dove vederlo in Italia. Niente account, solo idee.</p>
+        </header>
 
-        <div class="setup-cards">
-          <button type="button" class="setup-card" id="btn-by-style" data-mode="style">
-            <span class="setup-card-icon">✨</span>
-            <span class="setup-card-title">Per stile o genere</span>
-            <span class="setup-card-desc">Commedia, animazione, thriller… scegli l'atmosfera</span>
-          </button>
-          <button type="button" class="setup-card" id="btn-by-similar" data-mode="similar">
-            <span class="setup-card-icon">🔍</span>
-            <span class="setup-card-title">Simile a un film</span>
-            <span class="setup-card-desc">Scrivi un film che ti è piaciuto e troveremo altri come quello</span>
-          </button>
-          <button type="button" class="setup-card" id="btn-by-watch" data-mode="watch">
-            <span class="setup-card-icon">📺</span>
-            <span class="setup-card-title">Dove lo vedo?</span>
-            <span class="setup-card-desc">Cerca un titolo e scopri su quali piattaforme è disponibile in Italia</span>
-          </button>
+        <div class="home-picks" id="home-picks">
+          <section class="mood-block" aria-labelledby="mood-heading">
+            <h2 class="mood-block-title" id="mood-heading">Che mood hai stasera?</h2>
+            <p class="mood-block-lead">Un tocco e partiamo: puoi sempre rifinire dopo.</p>
+            <div class="mood-chips" id="mood-chips"></div>
+          </section>
+
+          <p class="home-paths-label">Oppure scegli un percorso</p>
+          <div class="setup-cards">
+            <button type="button" class="setup-card" id="btn-by-style" data-mode="style">
+              <span class="setup-card-icon" aria-hidden="true">✨</span>
+              <span class="setup-card-title">Swipa per stile</span>
+              <span class="setup-card-desc">Generi, anni e piattaforme: costruiamo una playlist solo per te.</span>
+              <span class="setup-card-example">Es. <em>«Voglio qualcosa di leggero»</em> → commedia e filtri</span>
+            </button>
+            <button type="button" class="setup-card" id="btn-by-similar" data-mode="similar">
+              <span class="setup-card-icon" aria-hidden="true">💜</span>
+              <span class="setup-card-title">Simile a un film che ami</span>
+              <span class="setup-card-desc">Partiamo da un titolo che ti ha emozionato e ti proponiamo parenti stretti.</span>
+              <span class="setup-card-example">Es. <em>«Come Inside Out»</em> → cerchiamo lo stesso vibe</span>
+            </button>
+            <button type="button" class="setup-card" id="btn-by-watch" data-mode="watch">
+              <span class="setup-card-icon" aria-hidden="true">📺</span>
+              <span class="setup-card-title">Dove lo vedo?</span>
+              <span class="setup-card-desc">Scopri in pochi secondi streaming, noleggio o acquisto in Italia.</span>
+              <span class="setup-card-example">Es. <em>«Shrek su Netflix?»</em> → controlliamo TMDB</span>
+            </button>
+          </div>
         </div>
 
         <!-- Form stile -->
@@ -109,7 +126,8 @@
           <button type="button" class="btn btn-primary btn-block" id="btn-search-watch">Mostra dove vederlo</button>
         </div>
 
-        <p class="setup-api-hint" id="api-hint"></p>
+        <p class="setup-api-hint" id="api-hint" role="status" aria-live="polite"></p>
+        <p class="home-footnote">Info sui film da <abbr title="The Movie Database">TMDB</abbr> · Nessun login · Funziona su GitHub Pages</p>
       </div>
     </section>
 
@@ -120,12 +138,12 @@
           <button type="button" class="back-button" id="btn-back-from-watch-screen" aria-label="Torna indietro">←</button>
           <div class="watch-header-text">
             <h2 class="watch-title" id="watch-movie-title">—</h2>
-            <p class="watch-subtitle">Disponibilità in Italia (fonte TMDB)</p>
+            <p class="watch-subtitle">Dove guardarlo in Italia (dati TMDB, possono cambiare)</p>
           </div>
         </div>
         <div class="watch-hero" id="watch-hero"></div>
         <div class="watch-sections" id="watch-sections"></div>
-        <p class="watch-disclaimer" id="watch-empty" hidden>Non abbiamo dati di streaming per questo titolo in Italia. Prova un altro film o controlla sul sito del distributore.</p>
+        <p class="watch-disclaimer" id="watch-empty" hidden>TMDB non ha ancora indicato dove passarlo in Italia. Prova un altro titolo o un controllo veloce sulle app che usi di solito.</p>
         <button type="button" class="btn btn-ghost" id="btn-watch-another">Cerca un altro film</button>
       </div>
     </section>
@@ -140,7 +158,11 @@
 
       <div class="cards-stack" id="cards-stack">
         <div class="card-placeholder" id="card-placeholder">
-          <p>Caricamento film…</p>
+          <div class="card-placeholder-inner">
+            <span class="card-placeholder-spinner" aria-hidden="true"></span>
+            <p class="card-placeholder-title">Stiamo preparando le proposte…</p>
+            <p class="card-placeholder-sub">Un attimo solo, stiamo parlando con TMDB.</p>
+          </div>
         </div>
       </div>
 
@@ -161,14 +183,16 @@
       <div class="matches-header">
         <button type="button" class="back-button" id="btn-back-from-matches" aria-label="Torna allo swipe">←</button>
         <div class="matches-header-text">
-          <h2>I tuoi match stasera</h2>
-          <p>Scegli quale guardare tra quelli che ti sono piaciuti</p>
+          <h2>I tuoi match di stasera</h2>
+          <p>Ecco i titoli che hai coccolato con un like: scegline uno e metti il popcorn.</p>
         </div>
       </div>
       <div class="matches-list" id="matches-list"></div>
       <div class="matches-empty hidden" id="matches-empty">
-        <p>Nessun match ancora. Torna indietro e swipa a destra sui film che ti piacciono!</p>
-        <button type="button" class="btn btn-primary" id="btn-back-to-swipe">Torna a swipare</button>
+        <div class="empty-illustration" aria-hidden="true">🍿</div>
+        <p class="empty-title">Ancora nessun cuoricino</p>
+        <p class="empty-copy">È normale: magari stavi ancora tastando il terreno. Torna alle card e swipa a <strong>destra</strong> sui film che ti ispirano: li ritroverai qui, pronti per la scelta finale.</p>
+        <button type="button" class="btn btn-primary" id="btn-back-to-swipe">Torna alle proposte</button>
       </div>
       <button type="button" class="btn btn-ghost" id="btn-new-search">Nuova ricerca</button>
     </section>

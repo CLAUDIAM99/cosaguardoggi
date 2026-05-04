@@ -39,6 +39,59 @@
   let likedMovies = [];
   let stackIndex = 0;
   const watchProvidersCardCache = new Map();
+  /** Testo "perché" mostrato sulle card swipe e sui match (sessione). */
+  let sessionSwipeWhy = "";
+
+  const MOOD_PRESETS = [
+    {
+      label: "Romantico",
+      whyLine: "Romance e commedia: serata morbida sul divano.",
+      genreIds: [10749, 35],
+      includeAnimation: true,
+      ratingFilter: "",
+      yearFilter: ""
+    },
+    {
+      label: "Leggero",
+      whyLine: "Per staccare la giornata senza pensieri.",
+      genreIds: [35],
+      includeAnimation: true,
+      ratingFilter: "",
+      yearFilter: ""
+    },
+    {
+      label: "Animazione cozy",
+      whyLine: "Colori caldi e storie avvolgenti — anche per chi ha già messo via lo zainetto.",
+      genreIds: [16, 10751],
+      includeAnimation: true,
+      ratingFilter: "",
+      yearFilter: ""
+    },
+    {
+      label: "Thriller ma non troppo",
+      whyLine: "Suspense e mistero, senza horror estremo.",
+      genreIds: [53, 9648],
+      includeAnimation: false,
+      ratingFilter: "6",
+      yearFilter: ""
+    },
+    {
+      label: "Per piangere",
+      whyLine: "Drammi che ti sciolgono — fazzoletti a portata di mano.",
+      genreIds: [18],
+      includeAnimation: true,
+      ratingFilter: "",
+      yearFilter: ""
+    },
+    {
+      label: "Comfort movie",
+      whyLine: "Quella sensazione di casa, risate e calore.",
+      genreIds: [35, 10749],
+      includeAnimation: true,
+      ratingFilter: "",
+      yearFilter: ""
+    }
+  ];
 
   const $ = (id) => document.getElementById(id);
   const showScreen = (id) => {
@@ -56,7 +109,10 @@
 
   function checkApiKey() {
     if (!apiKey || !apiKey.trim()) {
-      showApiHint("Inserisci una API key TMDB in config.js (gratuita su themoviedb.org/settings/api)", true);
+      showApiHint(
+        "Per iniziare serve una chiave TMDB (gratis): apri config.js, incollala, salva e ricarica la pagina. Link: themoviedb.org/settings/api",
+        true
+      );
       return false;
     }
     showApiHint("");
@@ -119,7 +175,7 @@
     let movies = (data.results || []).map(normalizeMovie);
     if (!movies.length && providerIds.length) {
       // fallback: se nessun titolo su queste piattaforme, riprova senza filtro piattaforme
-      showApiHint("Nessun titolo trovato su queste piattaforme. Mostro anche altri servizi.", true);
+      showApiHint("Su quelle piattaforme non c’è nulla con questi filtri: ti mostriamo anche altri servizi, ok?", true);
       delete params.with_watch_providers;
       delete params.with_watch_monetization_types;
       const dataFallback = await tmdb("/discover/movie", params);
@@ -257,7 +313,7 @@
       slotEl.innerHTML = '<p class="card-watch-empty">Configura l’API key per vedere le piattaforme.</p>';
       return;
     }
-    slotEl.innerHTML = '<p class="card-watch-loading">Caricamento piattaforme…</p>';
+    slotEl.innerHTML = '<p class="card-watch-loading">Sto chiedendo a TMDB dove passarlo in Italia…</p>';
     try {
       let it;
       if (watchProvidersCardCache.has(movieId)) {
@@ -268,7 +324,8 @@
       }
       slotEl.innerHTML = summarizeProvidersIT(it);
     } catch (_) {
-      slotEl.innerHTML = '<p class="card-watch-empty">Impossibile caricare dove vederlo.</p>';
+      slotEl.innerHTML =
+        '<p class="card-watch-empty">Non sono riuscita a caricare le piattaforme. Riprova tra un attimo.</p>';
     }
   }
 
@@ -348,6 +405,52 @@
         genreIds = Array.from(wrap.querySelectorAll(".chip.selected")).map((e) => +e.dataset.id);
       });
     });
+    syncGenreChipSelection();
+  }
+
+  function syncGenreChipSelection() {
+    const wrap = $("genre-chips");
+    if (!wrap) return;
+    wrap.querySelectorAll(".chip").forEach((btn) => {
+      btn.classList.toggle("selected", genreIds.includes(+btn.dataset.id));
+    });
+  }
+
+  function renderMoodChips() {
+    const wrap = $("mood-chips");
+    if (!wrap) return;
+    wrap.innerHTML = MOOD_PRESETS.map(
+      (p, i) =>
+        `<button type="button" class="mood-chip" data-mood-index="${i}">${escapeHtml(p.label)}</button>`
+    ).join("");
+    wrap.querySelectorAll(".mood-chip").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const preset = MOOD_PRESETS[+btn.dataset.moodIndex];
+        if (preset) applyMoodPreset(preset);
+      });
+    });
+  }
+
+  function applyMoodPreset(p) {
+    if (!checkApiKey()) return;
+    sessionSwipeWhy = p.whyLine;
+    genreIds = p.genreIds.slice();
+    includeAnimation = p.includeAnimation !== false;
+    yearFilter = p.yearFilter || "";
+    ratingFilter = p.ratingFilter || "";
+    providerIds = [];
+    if (yearFilterSelect) yearFilterSelect.value = yearFilter;
+    if (ratingFilterSelect) ratingFilterSelect.value = ratingFilter;
+    const incl = $("include-animation");
+    if (incl) incl.checked = includeAnimation;
+    platformChipsWrap?.querySelectorAll(".chip-platform").forEach((b) => b.classList.remove("selected"));
+    hideSetupChoiceButtons();
+    homePicks?.classList.add("hidden");
+    formSimilar?.classList.add("hidden");
+    formWatch?.classList.add("hidden");
+    formStyle?.classList.remove("hidden");
+    renderGenreChips();
+    showApiHint("Perfetto. Controlla i filtri se vuoi, poi «Inizia a swipare».");
   }
 
   function escapeHtml(s) {
@@ -365,9 +468,12 @@
     stack.querySelectorAll(".movie-card").forEach((el) => el.remove());
 
     const toShow = currentMovies.slice(stackIndex, stackIndex + 3);
+    const whyBlurb =
+      sessionSwipeWhy.trim() ||
+      "Titoli scelti tra i più amati su TMDB, in linea con la tua ricerca: se ti parla, un like.";
     toShow.forEach((movie, i) => {
       const fullOverview = movie.overview || "";
-      const overviewText = fullOverview.trim() || "Nessuna trama disponibile.";
+      const overviewText = fullOverview.trim() || "Trama non ancora disponibile — ma il poster parla da solo.";
       const card = document.createElement("div");
       card.className = "movie-card stack-" + i;
       card.dataset.movieId = movie.id;
@@ -384,6 +490,10 @@
             <h3 class="card-title">${escapeHtml(movie.title)}</h3>
             <p class="card-meta">${movie.year ? escapeHtml(String(movie.year)) : ""}</p>
             <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10 (TMDB)" : ""}</p>
+            <div class="card-section card-why-block">
+              <h4 class="card-section-title">Perché potrebbe piacerti</h4>
+              <p class="card-why-text">${escapeHtml(whyBlurb)}</p>
+            </div>
             <div class="card-section">
               <h4 class="card-section-title">Trama</h4>
               <p class="card-overview">${escapeHtml(overviewText)}</p>
@@ -479,7 +589,14 @@
     if (!stack || !placeholder) return;
     stack.querySelectorAll(".movie-card").forEach((el) => el.remove());
     placeholder.classList.remove("hidden");
-    placeholder.textContent = "Finite le card. Vai ai match o fai una nuova ricerca.";
+    placeholder.classList.remove("card-placeholder--loading");
+    placeholder.classList.add("card-placeholder--done");
+    placeholder.innerHTML = `
+      <div class="card-placeholder-inner">
+        <p class="card-placeholder-title">Hai visto tutte le proposte di questo giro</p>
+        <p class="card-placeholder-sub">Dai un’occhiata ai match con i cuoricini, oppure torna alla home per una nuova ricerca.</p>
+      </div>
+    `;
     updateSwipeCounts();
   }
 
@@ -502,31 +619,49 @@
     }
     list.classList.remove("hidden");
     empty.classList.add("hidden");
+    const whyMatch = sessionSwipeWhy.trim();
     likedMovies.forEach((m) => {
       const div = document.createElement("div");
       div.className = "match-card";
+      const whyHtml = whyMatch
+        ? `<p class="match-card-why"><span class="match-card-why-label">Perché era in lista</span>${escapeHtml(whyMatch)}</p>`
+        : `<p class="match-card-why match-card-why--muted"><span class="match-card-why-label">Perché era in lista</span>Titoli che hai scelto tu durante lo swipe.</p>`;
       div.innerHTML = `
-        <img src="${m.poster}" alt="">
+        <img src="${m.poster}" alt="${escapeHtml(m.title || "Locandina")}">
         <div class="match-card-info">
           <h3 class="match-card-title">${escapeHtml(m.title)}</h3>
-          <p class="match-card-meta">${m.year || ""}</p>
-          <p class="match-card-overview">${m.overview}</p>
+          <p class="match-card-meta">${m.year ? escapeHtml(String(m.year)) : ""}</p>
+          ${whyHtml}
+          <p class="match-card-overview">${escapeHtml(m.overview || "")}</p>
         </div>
       `;
       list.appendChild(div);
     });
   }
 
-  function startSwipe(movies) {
+  function startSwipe(movies, opts) {
     watchProvidersCardCache.clear();
     currentMovies = movies;
     stackIndex = 0;
     likedMovies = [];
+    if (opts && opts.whyLine) sessionSwipeWhy = opts.whyLine;
     showScreen("screen-swipe");
+    const placeholder = $("card-placeholder");
+    if (placeholder) {
+      placeholder.classList.remove("card-placeholder--done");
+      placeholder.classList.add("card-placeholder--loading");
+      placeholder.innerHTML = `
+        <div class="card-placeholder-inner">
+          <span class="card-placeholder-spinner" aria-hidden="true"></span>
+          <p class="card-placeholder-title">Sto assemblando le proposte…</p>
+          <p class="card-placeholder-sub">Ancora un attimo.</p>
+        </div>
+      `;
+    }
     renderCardsStack();
   }
 
-  const setupCards = document.querySelector(".setup-cards");
+  const homePicks = $("home-picks");
   const formStyle = $("form-style");
   const formSimilar = $("form-similar");
   const formWatch = $("form-watch");
@@ -537,41 +672,50 @@
   const ratingFilterSelect = $("rating-filter");
 
   $("btn-by-style")?.addEventListener("click", () => {
+    sessionSwipeWhy = "";
+    genreIds = [];
+    yearFilter = "";
+    ratingFilter = "";
+    providerIds = [];
+    if (yearFilterSelect) yearFilterSelect.value = "";
+    if (ratingFilterSelect) ratingFilterSelect.value = "";
+    platformChipsWrap?.querySelectorAll(".chip-platform").forEach((b) => b.classList.remove("selected"));
     hideSetupChoiceButtons();
-    setupCards?.classList.add("hidden");
+    homePicks?.classList.add("hidden");
     formStyle?.classList.remove("hidden");
     renderGenreChips();
   });
 
   $("btn-back-from-style")?.addEventListener("click", () => {
     formStyle?.classList.add("hidden");
-    setupCards?.classList.remove("hidden");
+    homePicks?.classList.remove("hidden");
     showSetupChoiceButtons();
   });
 
   $("btn-back-from-similar")?.addEventListener("click", () => {
     formSimilar?.classList.add("hidden");
-    setupCards?.classList.remove("hidden");
+    homePicks?.classList.remove("hidden");
     showSetupChoiceButtons();
   });
 
   $("btn-by-similar")?.addEventListener("click", () => {
+    sessionSwipeWhy = "";
     hideSetupChoiceButtons();
-    setupCards?.classList.add("hidden");
+    homePicks?.classList.add("hidden");
     formSimilar?.classList.remove("hidden");
     $("similar-input")?.focus();
   });
 
   $("btn-by-watch")?.addEventListener("click", () => {
     hideSetupChoiceButtons();
-    setupCards?.classList.add("hidden");
+    homePicks?.classList.add("hidden");
     formWatch?.classList.remove("hidden");
     $("watch-input")?.focus();
   });
 
   $("btn-back-from-watch")?.addEventListener("click", () => {
     formWatch?.classList.add("hidden");
-    setupCards?.classList.remove("hidden");
+    homePicks?.classList.remove("hidden");
     showSetupChoiceButtons();
   });
 
@@ -609,15 +753,23 @@
     let ids = genreIds.length ? [...genreIds] : [35, 18, 16];
     if (!includeAnimation) ids = ids.filter((id) => id !== 16);
     genreIds = ids;
+    const whyForSwipe =
+      sessionSwipeWhy.trim() ||
+      "Titoli in linea con i filtri che hai messo: se ti parla, metti un like.";
     try {
+      showApiHint("Sto cercando film per te…");
       const movies = await loadDiscover();
+      showApiHint("");
       if (movies.length === 0) {
-        showApiHint("Nessun film trovato. Prova altri generi.", true);
+        showApiHint(
+          "Con questa combinazione non esce nulla. Prova a togliere un filtro o scegliere altri generi.",
+          true
+        );
         return;
       }
-      startSwipe(movies);
+      startSwipe(movies, { whyLine: whyForSwipe });
     } catch (e) {
-      showApiHint("Errore di connessione o API key non valida.", true);
+      showApiHint("Qualcosa non ha funzionato (rete o chiave TMDB). Controlla la connessione e config.js.", true);
     }
   });
 
@@ -631,8 +783,8 @@
     clearTimeout(similarDebounce);
     const q = similarInput.value.trim();
     if (q.length < 2) {
-      similarSuggestions.classList.add("hidden");
-      similarSuggestions.innerHTML = "";
+      similarSuggestions?.classList.add("hidden");
+      if (similarSuggestions) similarSuggestions.innerHTML = "";
       return;
     }
     similarDebounce = setTimeout(async () => {
@@ -642,7 +794,7 @@
         similarSuggestions.innerHTML = list.slice(0, 8).map(
           (m) => `<div class="similar-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
         ).join("");
-        similarSuggestions.classList.remove("hidden");
+        similarSuggestions?.classList.remove("hidden");
         similarSuggestions.querySelectorAll(".similar-suggestion").forEach((el) => {
           el.addEventListener("click", () => {
             selectedMovieId = +el.dataset.id;
@@ -651,7 +803,7 @@
           });
         });
       } catch (_) {
-        similarSuggestions.classList.add("hidden");
+        similarSuggestions?.classList.add("hidden");
       }
     }, 300);
   });
@@ -666,18 +818,26 @@
       }
     }
     if (!selectedMovieId) {
-      showApiHint("Nessun film trovato. Prova un altro titolo.", true);
+      showApiHint("Non ho capito quale film intendi: scegline uno dalla lista o riscrivi il titolo.", true);
       return;
     }
+    const seedTitle = similarInput?.value?.trim() || "quel film";
     try {
+      showApiHint("Sto cercando titoli affini…");
       const movies = await loadSimilar(selectedMovieId);
+      showApiHint("");
       if (movies.length === 0) {
-        showApiHint("Nessun film simile trovato. Prova ad allentare filtri su anno o voto.", true);
+        showApiHint(
+          "TMDB non ha abbastanza suggerimenti con questi filtri. Prova ad abbassare il voto minimo o l’anno.",
+          true
+        );
         return;
       }
-      startSwipe(movies);
+      startSwipe(movies, {
+        whyLine: `Generi e raccomandazioni vicini a «${seedTitle}» (secondo TMDB).`
+      });
     } catch (e) {
-      showApiHint("Errore di connessione o API key non valida.", true);
+      showApiHint("Qualcosa non ha funzionato (rete o chiave TMDB). Riprova tra poco.", true);
     }
   });
 
@@ -691,8 +851,8 @@
     clearTimeout(watchDebounce);
     const q = watchInput.value.trim();
     if (q.length < 2) {
-      watchSuggestions.classList.add("hidden");
-      watchSuggestions.innerHTML = "";
+      watchSuggestions?.classList.add("hidden");
+      if (watchSuggestions) watchSuggestions.innerHTML = "";
       return;
     }
     watchDebounce = setTimeout(async () => {
@@ -703,7 +863,7 @@
           (m) =>
             `<div class="similar-suggestion watch-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
         ).join("");
-        watchSuggestions.classList.remove("hidden");
+        watchSuggestions?.classList.remove("hidden");
         watchSuggestions.querySelectorAll(".watch-suggestion").forEach((el) => {
           el.addEventListener("click", () => {
             watchSelectedMovieId = +el.dataset.id;
@@ -712,7 +872,7 @@
           });
         });
       } catch (_) {
-        watchSuggestions.classList.add("hidden");
+        watchSuggestions?.classList.add("hidden");
       }
     }, 300);
   });
@@ -736,22 +896,22 @@
       }
     }
     if (!id) {
-      showApiHint("Nessun film trovato. Scegli un titolo dai suggerimenti o prova un altro nome.", true);
+      showApiHint("Scegli un titolo dai suggerimenti mentre digiti, così andiamo sul sicuro.", true);
       return;
     }
     try {
-      showApiHint("Caricamento disponibilità…");
+      showApiHint("Sto controllando dove lo passano in Italia…");
       await openWatchProvidersForMovie(id);
       showApiHint("");
     } catch (e) {
-      showApiHint("Errore di connessione o API key non valida.", true);
+      showApiHint("Non riesco a contattare TMDB. Controlla rete e chiave in config.js.", true);
     }
   });
 
   $("btn-back-from-watch-screen")?.addEventListener("click", () => {
     showScreen("screen-setup");
     hideSetupChoiceButtons();
-    setupCards?.classList.add("hidden");
+    homePicks?.classList.add("hidden");
     formStyle?.classList.add("hidden");
     formSimilar?.classList.add("hidden");
     formWatch?.classList.remove("hidden");
@@ -760,7 +920,7 @@
   $("btn-watch-another")?.addEventListener("click", () => {
     showScreen("screen-setup");
     hideSetupChoiceButtons();
-    setupCards?.classList.add("hidden");
+    homePicks?.classList.add("hidden");
     formWatch?.classList.remove("hidden");
     if (watchInput) watchInput.value = "";
     watchSelectedMovieId = null;
@@ -801,7 +961,7 @@
 
   $("btn-new-search")?.addEventListener("click", () => {
     showScreen("screen-setup");
-    setupCards?.classList.remove("hidden");
+    homePicks?.classList.remove("hidden");
     showSetupChoiceButtons();
     formStyle?.classList.add("hidden");
     formSimilar?.classList.add("hidden");
@@ -810,8 +970,12 @@
     if (watchInput) watchInput.value = "";
     selectedMovieId = null;
     watchSelectedMovieId = null;
+    sessionSwipeWhy = "";
     showApiHint("");
   });
 
-  if (apiKey && apiKey.trim()) showApiHint("API key configurata. Scegli come cercare i film.");
+  renderMoodChips();
+  if (apiKey && apiKey.trim()) {
+    showApiHint("Tutto pronto: scegli un mood, un percorso, e buona serata.");
+  }
 })();

@@ -38,6 +38,7 @@
   let currentMovies = [];
   let likedMovies = [];
   let stackIndex = 0;
+  const watchProvidersCardCache = new Map();
 
   const $ = (id) => document.getElementById(id);
   const showScreen = (id) => {
@@ -217,6 +218,60 @@
     return it;
   }
 
+  function providerNamesUnique(list) {
+    if (!list || !list.length) return [];
+    return [...new Map(list.map((p) => [p.provider_id, p.provider_name])).values()].filter(Boolean);
+  }
+
+  function summarizeProvidersIT(providersIT) {
+    if (!providersIT) {
+      return '<p class="card-watch-empty">Dati non disponibili per l’Italia.</p>';
+    }
+    const rows = [];
+    const pushRow = (tag, names) => {
+      if (!names.length) return;
+      const line = names.map((n) => escapeHtml(n)).join(" · ");
+      rows.push(
+        `<p class="card-watch-line"><span class="card-watch-tag">${escapeHtml(tag)}</span> ${line}</p>`
+      );
+    };
+    pushRow("Streaming", providerNamesUnique(providersIT.flatrate));
+    pushRow("Noleggio", providerNamesUnique(providersIT.rent));
+    pushRow("Acquisto", providerNamesUnique(providersIT.buy));
+    pushRow("Gratis / pubblicità", providerNamesUnique(providersIT.ads));
+    pushRow("Gratis", providerNamesUnique(providersIT.free));
+    if (!rows.length && providersIT.link && /^https?:\/\//i.test(providersIT.link)) {
+      rows.push(
+        `<p class="card-watch-line"><a class="card-watch-link" href="${escapeHtml(providersIT.link)}" target="_blank" rel="noopener noreferrer">Disponibilità su TMDB</a></p>`
+      );
+    }
+    if (!rows.length) {
+      return '<p class="card-watch-empty">Nessuna piattaforma indicata per l’Italia (TMDB).</p>';
+    }
+    return rows.join("");
+  }
+
+  async function hydrateCardWatchProviders(movieId, slotEl) {
+    if (!slotEl) return;
+    if (!apiKey || !apiKey.trim()) {
+      slotEl.innerHTML = '<p class="card-watch-empty">Configura l’API key per vedere le piattaforme.</p>';
+      return;
+    }
+    slotEl.innerHTML = '<p class="card-watch-loading">Caricamento piattaforme…</p>';
+    try {
+      let it;
+      if (watchProvidersCardCache.has(movieId)) {
+        it = watchProvidersCardCache.get(movieId);
+      } else {
+        it = await loadWatchProviders(movieId);
+        watchProvidersCardCache.set(movieId, it);
+      }
+      slotEl.innerHTML = summarizeProvidersIT(it);
+    } catch (_) {
+      slotEl.innerHTML = '<p class="card-watch-empty">Impossibile caricare dove vederlo.</p>';
+    }
+  }
+
   function renderWatchScreen(movie, providersIT) {
     const titleEl = $("watch-movie-title");
     const hero = $("watch-hero");
@@ -312,8 +367,7 @@
     const toShow = currentMovies.slice(stackIndex, stackIndex + 3);
     toShow.forEach((movie, i) => {
       const fullOverview = movie.overview || "";
-      const shortOverview =
-        fullOverview.length > 200 ? fullOverview.slice(0, 200) + "…" : fullOverview;
+      const overviewText = fullOverview.trim() || "Nessuna trama disponibile.";
       const card = document.createElement("div");
       card.className = "movie-card stack-" + i;
       card.dataset.movieId = movie.id;
@@ -321,43 +375,37 @@
       card.innerHTML = `
         <div class="card-poster-wrap">
           <img class="card-poster" src="${movie.poster}" alt="" loading="lazy">
+          <div class="card-poster-hint">Swipa dalla locandina ↔</div>
           <div class="card-overlay like-overlay">LIKE</div>
           <div class="card-overlay nope-overlay">NOPE</div>
         </div>
         <div class="card-body">
-          <h3 class="card-title">${escapeHtml(movie.title)}</h3>
-          <p class="card-meta">${movie.year ? movie.year : ""}</p>
-          <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10 (TMDB)" : ""}</p>
-          <p class="card-overview">${escapeHtml(shortOverview)}</p>
-          ${
-            fullOverview.length > 200
-              ? '<button type="button" class="card-overview-toggle">Mostra di più</button>'
-              : ""
-          }
+          <div class="card-scroll">
+            <h3 class="card-title">${escapeHtml(movie.title)}</h3>
+            <p class="card-meta">${movie.year ? escapeHtml(String(movie.year)) : ""}</p>
+            <p class="card-rating">${movie.rating ? "★ " + movie.rating.toFixed(1) + " / 10 (TMDB)" : ""}</p>
+            <div class="card-section">
+              <h4 class="card-section-title">Trama</h4>
+              <p class="card-overview">${escapeHtml(overviewText)}</p>
+            </div>
+            <div class="card-section card-watch-block">
+              <h4 class="card-section-title">Dove vederlo (Italia)</h4>
+              <div class="card-watch-slot" data-movie-id="${movie.id}"></div>
+            </div>
+          </div>
         </div>
       `;
-      const overviewEl = card.querySelector(".card-overview");
-      const toggleBtn = card.querySelector(".card-overview-toggle");
-      if (overviewEl && toggleBtn) {
-        overviewEl.dataset.full = fullOverview;
-        overviewEl.dataset.short = shortOverview;
-        toggleBtn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const expanded = overviewEl.classList.toggle("expanded");
-          const full = overviewEl.dataset.full || "";
-          const short = overviewEl.dataset.short || "";
-          overviewEl.textContent = expanded ? full : short;
-          toggleBtn.textContent = expanded ? "Mostra meno" : "Mostra di più";
-        });
-      }
-      attachSwipeListeners(card, movie);
+      const posterWrap = card.querySelector(".card-poster-wrap");
+      if (posterWrap) attachSwipeListeners(posterWrap, card, movie);
+      const watchSlot = card.querySelector(".card-watch-slot");
+      hydrateCardWatchProviders(movie.id, watchSlot);
       stack.appendChild(card);
     });
 
     updateSwipeCounts();
   }
 
-  function attachSwipeListeners(cardEl, movie) {
+  function attachSwipeListeners(gestureEl, cardEl, movie) {
     let startX = 0, currentX = 0;
 
     function onStart(clientX) {
@@ -389,8 +437,8 @@
       }
     }
 
-    cardEl.addEventListener("mousedown", (e) => onStart(e.clientX));
-    cardEl.addEventListener("touchstart", (e) => {
+    gestureEl.addEventListener("mousedown", (e) => onStart(e.clientX));
+    gestureEl.addEventListener("touchstart", (e) => {
       e.preventDefault();
       onStart(e.touches[0].clientX);
     }, { passive: false });
@@ -470,6 +518,7 @@
   }
 
   function startSwipe(movies) {
+    watchProvidersCardCache.clear();
     currentMovies = movies;
     stackIndex = 0;
     likedMovies = [];

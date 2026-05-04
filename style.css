@@ -537,6 +537,101 @@ body {
 .matches-empty .btn { margin-top: 1rem; }
 .matches-empty p { margin: 0 0 1rem; }
 
+/* ========== DOVE LO VEDO ========== */
+.screen-watch {
+  padding: 1rem 1.25rem 2rem;
+  align-items: center;
+}
+.watch-screen-inner {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.watch-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: left;
+}
+.watch-header-text { flex: 1; min-width: 0; }
+.watch-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+.watch-subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.watch-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+.watch-poster {
+  width: 140px;
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
+  background: #222;
+}
+.watch-year {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.65);
+}
+.watch-sections { width: 100%; }
+.watch-section {
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
+.watch-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+}
+.watch-provider-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.watch-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.65rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  font-size: 0.88rem;
+  color: #fff;
+}
+.watch-provider img {
+  border-radius: 8px;
+  object-fit: contain;
+  background: #111;
+}
+.watch-tmdb-link {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+}
+.watch-tmdb-link a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.watch-disclaimer {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.92rem;
+  line-height: 1.45;
+  margin: 1rem 0;
+}
+
 .hidden { display: none !important; }
 
 /* ========== BACK BUTTON ========== */

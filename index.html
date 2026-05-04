@@ -30,6 +30,11 @@
             <span class="setup-card-title">Simile a un film</span>
             <span class="setup-card-desc">Scrivi un film che ti è piaciuto e troveremo altri come quello</span>
           </button>
+          <button type="button" class="setup-card" id="btn-by-watch" data-mode="watch">
+            <span class="setup-card-icon">📺</span>
+            <span class="setup-card-title">Dove lo vedo?</span>
+            <span class="setup-card-desc">Cerca un titolo e scopri su quali piattaforme è disponibile in Italia</span>
+          </button>
         </div>
 
         <!-- Form stile -->
@@ -95,7 +100,33 @@
           <button type="button" class="btn btn-primary btn-block" id="btn-start-similar">Cerca film simili</button>
         </div>
 
+        <!-- Form dove vederlo -->
+        <div class="setup-form hidden" id="form-watch">
+          <button type="button" class="back-button" id="btn-back-from-watch" aria-label="Torna alla home">←</button>
+          <label class="form-label" for="watch-input">Nome del film</label>
+          <input type="text" id="watch-input" class="field-input" placeholder="Es. Oppenheimer, Toy Story…" autocomplete="off">
+          <div id="watch-suggestions" class="similar-suggestions hidden"></div>
+          <button type="button" class="btn btn-primary btn-block" id="btn-search-watch">Mostra dove vederlo</button>
+        </div>
+
         <p class="setup-api-hint" id="api-hint"></p>
+      </div>
+    </section>
+
+    <!-- Schermata dove vederlo -->
+    <section class="screen screen-watch" id="screen-watch">
+      <div class="watch-screen-inner">
+        <div class="watch-header">
+          <button type="button" class="back-button" id="btn-back-from-watch-screen" aria-label="Torna indietro">←</button>
+          <div class="watch-header-text">
+            <h2 class="watch-title" id="watch-movie-title">—</h2>
+            <p class="watch-subtitle">Disponibilità in Italia (fonte TMDB)</p>
+          </div>
+        </div>
+        <div class="watch-hero" id="watch-hero"></div>
+        <div class="watch-sections" id="watch-sections"></div>
+        <p class="watch-disclaimer" id="watch-empty" hidden>Non abbiamo dati di streaming per questo titolo in Italia. Prova un altro film o controlla sul sito del distributore.</p>
+        <button type="button" class="btn btn-ghost" id="btn-watch-another">Cerca un altro film</button>
       </div>
     </section>
 

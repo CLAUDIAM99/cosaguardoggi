@@ -3,6 +3,7 @@
 
   const BASE = "https://api.themoviedb.org/3";
   const IMG_BASE = "https://image.tmdb.org/t/p/w500";
+  const IMG_LOGO = "https://image.tmdb.org/t/p/w45";
   const IMG_FALLBACK = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 600' fill='%23333'%3E%3Crect width='400' height='600' fill='%23222'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%23666'%3E🎬%3C/text%3E%3C/svg%3E";
 
   const GENRES_IT = [
@@ -54,11 +55,23 @@
 
   function checkApiKey() {
     if (!apiKey || !apiKey.trim()) {
-      showApiHint("Inserisci una API key TMDB in movie-picker/config.js (gratuita su themoviedb.org/settings/api)", true);
+      showApiHint("Inserisci una API key TMDB in config.js (gratuita su themoviedb.org/settings/api)", true);
       return false;
     }
     showApiHint("");
     return true;
+  }
+
+  function hideSetupChoiceButtons() {
+    $("btn-by-style")?.classList.add("hidden");
+    $("btn-by-similar")?.classList.add("hidden");
+    $("btn-by-watch")?.classList.add("hidden");
+  }
+
+  function showSetupChoiceButtons() {
+    $("btn-by-style")?.classList.remove("hidden");
+    $("btn-by-similar")?.classList.remove("hidden");
+    $("btn-by-watch")?.classList.remove("hidden");
   }
 
   async function tmdb(path, params = {}) {
@@ -80,8 +93,9 @@
       overview: m.overview || "",
       year: (m.release_date || m.first_air_date || "").slice(0, 4),
       poster: m.poster_path ? IMG_BASE + m.poster_path : IMG_FALLBACK,
-      genre_ids: m.genre_ids || [],
-      rating: m.vote_average || null
+      genre_ids: m.genre_ids && m.genre_ids.length ? m.genre_ids : (m.genres || []).map((g) => g.id),
+      rating: m.vote_average || null,
+      vote_count: m.vote_count != null ? m.vote_count : 0
     };
   }
 
@@ -114,24 +128,157 @@
   }
 
   async function searchMovie(query) {
-    const data = await tmdb("/search/movie", { query, page: 1 });
+    const data = await tmdb("/search/movie", {
+      query,
+      page: 1,
+      include_adult: false,
+      region: "IT"
+    });
     return (data.results || []).map(normalizeMovie);
   }
 
+  function genreOverlapScore(seedGenreIds, movieGenreIds) {
+    if (!seedGenreIds || !seedGenreIds.length || !movieGenreIds || !movieGenreIds.length) return 0;
+    const seed = new Set(seedGenreIds);
+    let n = 0;
+    for (let i = 0; i < movieGenreIds.length; i++) {
+      if (seed.has(movieGenreIds[i])) n++;
+    }
+    return n;
+  }
+
   async function loadSimilar(movieId) {
-    const data = await tmdb(`/movie/${movieId}/similar`, { page: 1 });
-    let movies = (data.results || []).map(normalizeMovie);
+    const [details, rec1, rec2, sim] = await Promise.all([
+      tmdb(`/movie/${movieId}`, {}),
+      tmdb(`/movie/${movieId}/recommendations`, { page: 1 }),
+      tmdb(`/movie/${movieId}/recommendations`, { page: 2 }),
+      tmdb(`/movie/${movieId}/similar`, { page: 1 })
+    ]);
+    let seedGenres = (details.genres || []).map((g) => g.id).filter(Boolean);
+    if (!seedGenres.length && details.genre_ids && details.genre_ids.length) {
+      seedGenres = details.genre_ids.slice();
+    }
+
+    const byId = new Map();
+    function ingest(results, sourceRank) {
+      (results || []).forEach((raw, idx) => {
+        if (!raw || raw.id === movieId) return;
+        const prev = byId.get(raw.id);
+        if (!prev || sourceRank < prev.sourceRank) {
+          byId.set(raw.id, { raw, sourceRank, idx });
+        }
+      });
+    }
+    ingest(rec1.results, 0);
+    ingest(rec2.results, 0);
+    ingest(sim.results, 1);
+
+    let movies = [];
+    byId.forEach(({ raw, sourceRank, idx }) => {
+      const m = normalizeMovie(raw);
+      const overlap = genreOverlapScore(seedGenres, raw.genre_ids || []);
+      movies.push({
+        ...m,
+        _overlap: overlap,
+        _sourceRank: sourceRank,
+        _idx: idx
+      });
+    });
+
     if (yearFilterSimilar) {
+      const minY = Number(yearFilterSimilar);
       movies = movies.filter((m) => {
         const y = Number(m.year);
-        return !Number.isNaN(y) && y >= Number(yearFilterSimilar);
+        return !Number.isNaN(y) && y >= minY;
       });
     }
     if (ratingFilterSimilar) {
       const min = Number(ratingFilterSimilar);
       movies = movies.filter((m) => (m.rating || 0) >= min);
     }
-    return movies;
+
+    movies.sort((a, b) => {
+      if (b._overlap !== a._overlap) return b._overlap - a._overlap;
+      if (a._sourceRank !== b._sourceRank) return a._sourceRank - b._sourceRank;
+      const ra = a.rating || 0;
+      const rb = b.rating || 0;
+      if (rb !== ra) return rb - ra;
+      const va = a.vote_count || 0;
+      const vb = b.vote_count || 0;
+      return vb - va;
+    });
+
+    return movies.map(({ _overlap, _sourceRank, _idx, ...rest }) => rest);
+  }
+
+  async function loadWatchProviders(movieId) {
+    const data = await tmdb(`/movie/${movieId}/watch/providers`, {});
+    const it = (data.results && data.results.IT) || null;
+    return it;
+  }
+
+  function renderWatchScreen(movie, providersIT) {
+    const titleEl = $("watch-movie-title");
+    const hero = $("watch-hero");
+    const sections = $("watch-sections");
+    const empty = $("watch-empty");
+    if (!titleEl || !hero || !sections || !empty) return;
+
+    titleEl.textContent = movie.title || "—";
+    const altPoster = escapeHtml(movie.title || "Locandina");
+    hero.innerHTML = `
+      <img class="watch-poster" src="${movie.poster}" alt="${altPoster}" loading="lazy">
+      <p class="watch-year">${movie.year ? escapeHtml(String(movie.year)) : ""}</p>
+    `;
+
+    const labels = {
+      flatrate: "In abbonamento (streaming)",
+      rent: "Noleggio digitale",
+      buy: "Acquisto digitale",
+      ads: "Gratis con pubblicità",
+      free: "Gratis"
+    };
+
+    const keys = ["flatrate", "rent", "buy", "ads", "free"];
+    let any = false;
+    sections.innerHTML = "";
+
+    keys.forEach((key) => {
+      const list = providersIT && providersIT[key];
+      if (!list || !list.length) return;
+      any = true;
+      const wrap = document.createElement("div");
+      wrap.className = "watch-section";
+      wrap.innerHTML = `<h3 class="watch-section-title">${labels[key] || key}</h3>`;
+      const row = document.createElement("div");
+      row.className = "watch-provider-row";
+      list.forEach((p) => {
+        const logo = p.logo_path ? IMG_LOGO + p.logo_path : IMG_FALLBACK;
+        const name = escapeHtml(p.provider_name || "");
+        const div = document.createElement("div");
+        div.className = "watch-provider";
+        div.innerHTML = `<img src="${logo}" alt="" width="36" height="36" loading="lazy"><span>${name}</span>`;
+        row.appendChild(div);
+      });
+      wrap.appendChild(row);
+      sections.appendChild(wrap);
+    });
+
+    if (providersIT && providersIT.link && /^https?:\/\//i.test(providersIT.link)) {
+      any = true;
+      const linkWrap = document.createElement("p");
+      linkWrap.className = "watch-tmdb-link";
+      const a = document.createElement("a");
+      a.href = providersIT.link;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "Apri la scheda TMDB (dettagli e link)";
+      linkWrap.appendChild(a);
+      sections.appendChild(linkWrap);
+    }
+
+    empty.hidden = any;
+    sections.hidden = !any;
   }
 
   function renderGenreChips() {
@@ -333,6 +480,7 @@
   const setupCards = document.querySelector(".setup-cards");
   const formStyle = $("form-style");
   const formSimilar = $("form-similar");
+  const formWatch = $("form-watch");
   const yearFilterSelect = $("year-filter");
   const platformChipsWrap = $("platform-chips");
   const yearFilterSimilarSelect = $("year-filter-similar");
@@ -340,8 +488,7 @@
   const ratingFilterSelect = $("rating-filter");
 
   $("btn-by-style")?.addEventListener("click", () => {
-    $("btn-by-style")?.classList.add("hidden");
-    $("btn-by-similar")?.classList.add("hidden");
+    hideSetupChoiceButtons();
     setupCards?.classList.add("hidden");
     formStyle?.classList.remove("hidden");
     renderGenreChips();
@@ -350,23 +497,33 @@
   $("btn-back-from-style")?.addEventListener("click", () => {
     formStyle?.classList.add("hidden");
     setupCards?.classList.remove("hidden");
-    $("btn-by-style")?.classList.remove("hidden");
-    $("btn-by-similar")?.classList.remove("hidden");
+    showSetupChoiceButtons();
   });
 
   $("btn-back-from-similar")?.addEventListener("click", () => {
     formSimilar?.classList.add("hidden");
     setupCards?.classList.remove("hidden");
-    $("btn-by-style")?.classList.remove("hidden");
-    $("btn-by-similar")?.classList.remove("hidden");
+    showSetupChoiceButtons();
   });
 
   $("btn-by-similar")?.addEventListener("click", () => {
-    $("btn-by-style")?.classList.add("hidden");
-    $("btn-by-similar")?.classList.add("hidden");
+    hideSetupChoiceButtons();
     setupCards?.classList.add("hidden");
     formSimilar?.classList.remove("hidden");
     $("similar-input")?.focus();
+  });
+
+  $("btn-by-watch")?.addEventListener("click", () => {
+    hideSetupChoiceButtons();
+    setupCards?.classList.add("hidden");
+    formWatch?.classList.remove("hidden");
+    $("watch-input")?.focus();
+  });
+
+  $("btn-back-from-watch")?.addEventListener("click", () => {
+    formWatch?.classList.add("hidden");
+    setupCards?.classList.remove("hidden");
+    showSetupChoiceButtons();
   });
 
   $("include-animation")?.addEventListener("change", (e) => {
@@ -433,7 +590,7 @@
       if (!apiKey) return;
       try {
         const list = await searchMovie(q);
-        similarSuggestions.innerHTML = list.slice(0, 6).map(
+        similarSuggestions.innerHTML = list.slice(0, 8).map(
           (m) => `<div class="similar-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
         ).join("");
         similarSuggestions.classList.remove("hidden");
@@ -466,13 +623,100 @@
     try {
       const movies = await loadSimilar(selectedMovieId);
       if (movies.length === 0) {
-        showApiHint("Nessun film simile trovato.", true);
+        showApiHint("Nessun film simile trovato. Prova ad allentare filtri su anno o voto.", true);
         return;
       }
       startSwipe(movies);
     } catch (e) {
       showApiHint("Errore di connessione o API key non valida.", true);
     }
+  });
+
+  const watchInput = $("watch-input");
+  const watchSuggestions = $("watch-suggestions");
+  let watchDebounce = null;
+  let watchSelectedMovieId = null;
+
+  watchInput?.addEventListener("input", () => {
+    watchSelectedMovieId = null;
+    clearTimeout(watchDebounce);
+    const q = watchInput.value.trim();
+    if (q.length < 2) {
+      watchSuggestions.classList.add("hidden");
+      watchSuggestions.innerHTML = "";
+      return;
+    }
+    watchDebounce = setTimeout(async () => {
+      if (!apiKey) return;
+      try {
+        const list = await searchMovie(q);
+        watchSuggestions.innerHTML = list.slice(0, 8).map(
+          (m) =>
+            `<div class="similar-suggestion watch-suggestion" data-id="${m.id}">${escapeHtml(m.title)}${m.year ? " (" + m.year + ")" : ""}</div>`
+        ).join("");
+        watchSuggestions.classList.remove("hidden");
+        watchSuggestions.querySelectorAll(".watch-suggestion").forEach((el) => {
+          el.addEventListener("click", () => {
+            watchSelectedMovieId = +el.dataset.id;
+            watchInput.value = el.textContent.trim();
+            watchSuggestions.classList.add("hidden");
+          });
+        });
+      } catch (_) {
+        watchSuggestions.classList.add("hidden");
+      }
+    }, 300);
+  });
+
+  async function openWatchProvidersForMovie(movieId) {
+    const details = await tmdb(`/movie/${movieId}`, {});
+    const movie = normalizeMovie(details);
+    const providersIT = await loadWatchProviders(movieId);
+    renderWatchScreen(movie, providersIT);
+    showScreen("screen-watch");
+  }
+
+  $("btn-search-watch")?.addEventListener("click", async () => {
+    if (!checkApiKey()) return;
+    let id = watchSelectedMovieId;
+    if (!id) {
+      const q = watchInput?.value?.trim();
+      if (q) {
+        const list = await searchMovie(q);
+        if (list.length) id = list[0].id;
+      }
+    }
+    if (!id) {
+      showApiHint("Nessun film trovato. Scegli un titolo dai suggerimenti o prova un altro nome.", true);
+      return;
+    }
+    try {
+      showApiHint("Caricamento disponibilità…");
+      await openWatchProvidersForMovie(id);
+      showApiHint("");
+    } catch (e) {
+      showApiHint("Errore di connessione o API key non valida.", true);
+    }
+  });
+
+  $("btn-back-from-watch-screen")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+    hideSetupChoiceButtons();
+    setupCards?.classList.add("hidden");
+    formStyle?.classList.add("hidden");
+    formSimilar?.classList.add("hidden");
+    formWatch?.classList.remove("hidden");
+  });
+
+  $("btn-watch-another")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+    hideSetupChoiceButtons();
+    setupCards?.classList.add("hidden");
+    formWatch?.classList.remove("hidden");
+    if (watchInput) watchInput.value = "";
+    watchSelectedMovieId = null;
+    showApiHint("");
+    watchInput?.focus();
   });
 
   $("btn-nope")?.addEventListener("click", () => {
@@ -509,12 +753,14 @@
   $("btn-new-search")?.addEventListener("click", () => {
     showScreen("screen-setup");
     setupCards?.classList.remove("hidden");
-    $("btn-by-style")?.classList.remove("hidden");
-    $("btn-by-similar")?.classList.remove("hidden");
+    showSetupChoiceButtons();
     formStyle?.classList.add("hidden");
     formSimilar?.classList.add("hidden");
+    formWatch?.classList.add("hidden");
     if (similarInput) similarInput.value = "";
+    if (watchInput) watchInput.value = "";
     selectedMovieId = null;
+    watchSelectedMovieId = null;
     showApiHint("");
   });
 

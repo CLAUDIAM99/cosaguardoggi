@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Stasera cosa guardo? – Scegli film e cartoni</title>
-  <meta name="description" content="Decidi cosa guardare stasera: swipa film e cartoni, trova titoli simili a quelli che ami, scopri dove vederli in Italia. Gratis, senza account.">
+  <meta name="description" content="Decidi cosa guardare stasera: swipa film e cartoni, trova titoli simili, scopri dove vederli in Italia. Login opzionale per salvare i like sul tuo account.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <link rel="stylesheet" href="style.css">
@@ -21,8 +21,31 @@
         <header class="home-hero">
           <p class="home-eyebrow">La tua serata, zero stress</p>
           <h1 class="setup-title">Stasera cosa guardo?</h1>
-          <p class="setup-subtitle">Tre modi semplici per scegliere un film o un cartone — e capire subito dove vederlo in Italia. Niente account, solo idee.</p>
+          <p class="setup-subtitle">Tre modi semplici per scegliere un film o un cartone — e capire subito dove vederlo in Italia. Account opzionale: salva i like nel cloud e ritrovali su ogni dispositivo.</p>
         </header>
+
+        <div class="auth-strip" id="auth-strip">
+          <div id="auth-panel-guest" class="auth-panel-guest">
+            <div class="auth-strip-head">
+              <span class="auth-strip-label">Salva i tuoi film</span>
+              <button type="button" class="btn btn-auth-toggle" id="btn-auth-expand">Accedi o registrati</button>
+            </div>
+            <div id="auth-forms" class="auth-forms hidden">
+              <input type="email" id="auth-email" class="field-input" placeholder="Email" autocomplete="username">
+              <input type="password" id="auth-password" class="field-input" placeholder="Password (min. 6 caratteri)" autocomplete="current-password">
+              <p class="auth-msg" id="auth-msg" role="status"></p>
+              <button type="button" class="btn btn-primary btn-block" id="btn-auth-login">Entra</button>
+              <button type="button" class="btn btn-ghost btn-block btn-auth-secondary" id="btn-auth-register">Crea account</button>
+            </div>
+          </div>
+          <div id="auth-panel-user" class="auth-panel-user hidden">
+            <div class="auth-user-row">
+              <span class="auth-user-email" id="auth-user-email"></span>
+              <button type="button" class="btn btn-ghost btn-small" id="btn-auth-logout">Esci</button>
+            </div>
+            <button type="button" class="btn btn-primary btn-block" id="btn-open-library">I miei film salvati</button>
+          </div>
+        </div>
 
         <div class="home-picks" id="home-picks">
           <section class="mood-block" aria-labelledby="mood-heading">
@@ -127,7 +150,7 @@
         </div>
 
         <p class="setup-api-hint" id="api-hint" role="status" aria-live="polite"></p>
-        <p class="home-footnote">Info sui film da <abbr title="The Movie Database">TMDB</abbr> · Nessun login · Funziona su GitHub Pages</p>
+        <p class="home-footnote">Film da <abbr title="The Movie Database">TMDB</abbr> · Login opzionale (Firebase) · Funziona su GitHub Pages</p>
       </div>
     </section>
 
@@ -157,6 +180,7 @@
       </div>
 
       <div class="cards-stack" id="cards-stack">
+        <div class="deck-progress hidden" id="deck-progress" aria-live="polite"></div>
         <div class="card-placeholder" id="card-placeholder">
           <div class="card-placeholder-inner">
             <span class="card-placeholder-spinner" aria-hidden="true"></span>
@@ -176,6 +200,23 @@
       </div>
 
       <button type="button" class="btn btn-ghost btn-small" id="btn-see-matches">Vedi i miei match</button>
+      <p class="swipe-auth-hint hidden" id="swipe-auth-hint">Accedi dalla home per salvare automaticamente i like sul tuo account.</p>
+    </section>
+
+    <!-- Film salvati (cloud) -->
+    <section class="screen screen-library" id="screen-library">
+      <div class="library-inner">
+        <div class="library-header">
+          <button type="button" class="back-button" id="btn-back-from-library" aria-label="Indietro">←</button>
+          <div class="library-header-text">
+            <h2>I tuoi film salvati</h2>
+            <p>I titoli che hai messo tra i preferiti con l’account attivo.</p>
+          </div>
+        </div>
+        <p class="library-empty hidden" id="library-empty">Qui è ancora vuoto: durante lo swipe metti un ♥ e resterà salvato.</p>
+        <div class="library-list" id="library-list"></div>
+        <button type="button" class="btn btn-ghost" id="btn-library-home">Torna alla home</button>
+      </div>
     </section>
 
     <!-- Schermata match / scelta finale -->
@@ -199,6 +240,9 @@
   </div>
 
   <script src="config.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

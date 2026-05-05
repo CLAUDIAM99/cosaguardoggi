@@ -93,6 +93,158 @@
     }
   ];
 
+  let firebaseDb = null;
+  let firebaseUser = null;
+  let savedMoviesUnsub = null;
+  let firebaseReady = false;
+
+  function firebaseConfigured() {
+    const fb = window.MOVIE_PICKER_CONFIG && window.MOVIE_PICKER_CONFIG.firebase;
+    return !!(fb && fb.apiKey && fb.projectId && typeof firebase !== "undefined");
+  }
+
+  function initFirebaseIfPossible() {
+    firebaseReady = false;
+    if (!firebaseConfigured()) return false;
+    const cfg = window.MOVIE_PICKER_CONFIG.firebase;
+    try {
+      if (!firebase.apps.length) {
+        firebase.initializeApp(cfg);
+      }
+      firebaseDb = firebase.firestore();
+      firebaseReady = true;
+      firebase.auth().onAuthStateChanged((user) => {
+        firebaseUser = user;
+        if (savedMoviesUnsub) {
+          savedMoviesUnsub();
+          savedMoviesUnsub = null;
+        }
+        if (user && firebaseDb) {
+          savedMoviesUnsub = firebaseDb
+            .collection("users")
+            .doc(user.uid)
+            .collection("likedMovies")
+            .onSnapshot((snap) => {
+              const libBtn = $("btn-open-library");
+              if (libBtn) {
+                libBtn.textContent =
+                  snap.size > 0 ? `I miei film salvati (${snap.size})` : "I miei film salvati";
+              }
+            });
+        }
+        updateAuthPanels();
+      });
+      return true;
+    } catch (e) {
+      console.warn("Firebase init:", e);
+      firebaseReady = false;
+      firebaseDb = null;
+      return false;
+    }
+  }
+
+  function setAuthMsg(text, isError) {
+    const el = $("auth-msg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("auth-msg-error", !!isError);
+  }
+
+  function updateAuthPanels() {
+    const strip = $("auth-strip");
+    const guest = $("auth-panel-guest");
+    const userP = $("auth-panel-user");
+    const swipeHint = $("swipe-auth-hint");
+    if (!firebaseConfigured() || !firebaseReady) {
+      strip?.classList.add("hidden");
+      swipeHint?.classList.add("hidden");
+      return;
+    }
+    strip?.classList.remove("hidden");
+    swipeHint?.classList.toggle("hidden", !!firebaseUser);
+    if (firebaseUser) {
+      guest?.classList.add("hidden");
+      userP?.classList.remove("hidden");
+      const em = $("auth-user-email");
+      if (em) em.textContent = firebaseUser.email || "Account attivo";
+    } else {
+      guest?.classList.remove("hidden");
+      userP?.classList.add("hidden");
+    }
+  }
+
+  async function persistLikeToCloud(movie) {
+    if (!firebaseUser || !firebaseDb) return;
+    try {
+      await firebaseDb
+        .collection("users")
+        .doc(firebaseUser.uid)
+        .collection("likedMovies")
+        .doc(String(movie.id))
+        .set(
+          {
+            title: movie.title || "",
+            year: movie.year || "",
+            poster: movie.poster || "",
+            overview: movie.overview || "",
+            rating: movie.rating ?? null,
+            vote_count: movie.vote_count ?? 0,
+            savedAt: firebase.firestore.FieldValue.serverTimestamp()
+          },
+          { merge: true }
+        );
+    } catch (e) {
+      console.warn("Salvataggio cloud:", e);
+    }
+  }
+
+  async function renderLibrary() {
+    const list = $("library-list");
+    const empty = $("library-empty");
+    if (!list || !empty) return;
+    list.innerHTML = "";
+    if (!firebaseUser || !firebaseDb) {
+      empty.textContent = "Accedi per vedere i film salvati.";
+      empty.classList.remove("hidden");
+      return;
+    }
+    try {
+      const snap = await firebaseDb
+        .collection("users")
+        .doc(firebaseUser.uid)
+        .collection("likedMovies")
+        .get();
+      if (snap.empty) {
+        empty.classList.remove("hidden");
+        return;
+      }
+      empty.classList.add("hidden");
+      const rows = snap.docs
+        .map((d) => ({ ...d.data(), id: Number(d.id) }))
+        .sort((a, b) => {
+          const sa = a.savedAt && a.savedAt.seconds ? a.savedAt.seconds : 0;
+          const sb = b.savedAt && b.savedAt.seconds ? b.savedAt.seconds : 0;
+          return sb - sa;
+        });
+      rows.forEach((m) => {
+        const div = document.createElement("div");
+        div.className = "match-card library-card";
+        div.innerHTML = `
+          <img src="${m.poster || IMG_FALLBACK}" alt="${escapeHtml(m.title || "Locandina")}">
+          <div class="match-card-info">
+            <h3 class="match-card-title">${escapeHtml(m.title || "")}</h3>
+            <p class="match-card-meta">${m.year ? escapeHtml(String(m.year)) : ""}</p>
+            <p class="match-card-overview">${escapeHtml(m.overview || "")}</p>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    } catch (e) {
+      empty.textContent = "Non riesco a caricare l’elenco. Controlla la connessione.";
+      empty.classList.remove("hidden");
+    }
+  }
+
   const $ = (id) => document.getElementById(id);
   const showScreen = (id) => {
     document.querySelectorAll(".screen").forEach((s) => s.classList.remove("active"));
@@ -481,7 +633,7 @@
       card.innerHTML = `
         <div class="card-poster-wrap">
           <img class="card-poster" src="${movie.poster}" alt="" loading="lazy">
-          <div class="card-poster-hint">Swipa dalla locandina ↔</div>
+          <div class="card-poster-hint">Swipa la card ↔ · Scorri il testo per leggere</div>
           <div class="card-overlay like-overlay">LIKE</div>
           <div class="card-overlay nope-overlay">NOPE</div>
         </div>
@@ -505,8 +657,7 @@
           </div>
         </div>
       `;
-      const posterWrap = card.querySelector(".card-poster-wrap");
-      if (posterWrap) attachSwipeListeners(posterWrap, card, movie);
+      if (i === 0) attachSwipeListeners(card, movie);
       const watchSlot = card.querySelector(".card-watch-slot");
       hydrateCardWatchProviders(movie.id, watchSlot);
       stack.appendChild(card);
@@ -515,72 +666,166 @@
     updateSwipeCounts();
   }
 
-  function attachSwipeListeners(gestureEl, cardEl, movie) {
-    let startX = 0, currentX = 0;
+  function attachSwipeListeners(cardEl, movie) {
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let dragSamples = [];
+    let axisLocked = null;
+    const scrollEl = cardEl.querySelector(".card-scroll");
 
-    function onStart(clientX) {
+    function resetScrollPointer() {
+      if (scrollEl) scrollEl.style.pointerEvents = "";
+    }
+
+    function beginDrag(clientX, clientY) {
       if (!cardEl.classList.contains("stack-0")) return;
       cardEl.classList.add("dragging");
       startX = clientX;
+      startY = clientY;
       currentX = 0;
+      dragSamples = [{ t: performance.now(), x: clientX }];
+      axisLocked = null;
     }
 
-    function onMove(clientX) {
-      if (!cardEl.classList.contains("dragging")) return;
-      currentX = clientX - startX;
-      const rot = Math.min(30, Math.max(-30, currentX * 0.15));
-      cardEl.style.transform = `translateX(calc(-50% + ${currentX}px)) rotate(${rot}deg)`;
-      cardEl.classList.toggle("swipe-right", currentX > 50);
-      cardEl.classList.toggle("swipe-left", currentX < -50);
+    function velocityPxPerMs() {
+      if (dragSamples.length < 2) return 0;
+      const a = dragSamples[0];
+      const b = dragSamples[dragSamples.length - 1];
+      const dt = b.t - a.t;
+      if (dt < 12) return 0;
+      return (b.x - a.x) / dt;
     }
 
-    function onEnd() {
+    function onMovePointer(clientX, clientY) {
       if (!cardEl.classList.contains("dragging")) return;
-      cardEl.classList.remove("dragging");
-      if (currentX > 80) {
-        likeCard(cardEl, movie);
-      } else if (currentX < -80) {
-        nopeCard(cardEl, movie);
-      } else {
-        cardEl.style.transform = "";
-        cardEl.classList.remove("swipe-right", "swipe-left");
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      if (!axisLocked) {
+        if (Math.abs(dx) > 11 || Math.abs(dy) > 11) {
+          if (Math.abs(dx) > Math.abs(dy) * 1.06) {
+            axisLocked = "h";
+            if (scrollEl) scrollEl.style.pointerEvents = "none";
+          } else {
+            axisLocked = "v";
+            cardEl.classList.remove("dragging");
+            resetScrollPointer();
+            axisLocked = null;
+            return;
+          }
+        } else return;
       }
+
+      if (axisLocked !== "h") return;
+
+      currentX = dx;
+      dragSamples.push({ t: performance.now(), x: clientX });
+      if (dragSamples.length > 8) dragSamples.shift();
+
+      const rot = Math.min(20, Math.max(-20, currentX * 0.11));
+      cardEl.style.transform = `translateX(calc(-50% + ${currentX}px)) rotate(${rot}deg)`;
+      cardEl.classList.toggle("swipe-right", currentX > 36);
+      cardEl.classList.toggle("swipe-left", currentX < -36);
     }
 
-    gestureEl.addEventListener("mousedown", (e) => onStart(e.clientX));
-    gestureEl.addEventListener("touchstart", (e) => {
-      e.preventDefault();
-      onStart(e.touches[0].clientX);
-    }, { passive: false });
-    window.addEventListener("mousemove", (e) => {
-      if (cardEl.classList.contains("dragging")) onMove(e.clientX);
+    function finishDrag() {
+      if (!cardEl.classList.contains("dragging")) {
+        axisLocked = null;
+        return;
+      }
+      cardEl.classList.remove("dragging");
+      resetScrollPointer();
+
+      const vx = velocityPxPerMs();
+      const COMMIT = 48;
+      const VEL = 0.32;
+
+      if (axisLocked === "h") {
+        if (currentX > COMMIT || vx > VEL) {
+          likeCard(cardEl, movie);
+        } else if (currentX < -COMMIT || vx < -VEL) {
+          nopeCard(cardEl, movie);
+        } else {
+          cardEl.style.transition =
+            "transform 0.34s cubic-bezier(0.34, 1.45, 0.64, 1)";
+          cardEl.style.transform = "";
+          cardEl.classList.remove("swipe-right", "swipe-left");
+          setTimeout(() => {
+            cardEl.style.transition = "";
+          }, 360);
+        }
+      }
+
+      axisLocked = null;
+      currentX = 0;
+      dragSamples = [];
+    }
+
+    cardEl.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return;
+      beginDrag(e.clientX, e.clientY);
+      function mm(ev) {
+        onMovePointer(ev.clientX, ev.clientY);
+      }
+      function mu() {
+        window.removeEventListener("mousemove", mm);
+        window.removeEventListener("mouseup", mu);
+        finishDrag();
+      }
+      window.addEventListener("mousemove", mm);
+      window.addEventListener("mouseup", mu);
     });
-    window.addEventListener("touchmove", (e) => {
-      if (cardEl.classList.contains("dragging") && e.touches[0]) onMove(e.touches[0].clientX);
-    }, { passive: true });
-    window.addEventListener("mouseup", () => onEnd());
-    window.addEventListener("touchend", () => onEnd());
+
+    cardEl.addEventListener(
+      "touchstart",
+      (e) => {
+        const t = e.touches[0];
+        beginDrag(t.clientX, t.clientY);
+      },
+      { passive: true }
+    );
+
+    cardEl.addEventListener(
+      "touchmove",
+      (e) => {
+        const t = e.touches[0];
+        onMovePointer(t.clientX, t.clientY);
+        if (axisLocked === "h") e.preventDefault();
+      },
+      { passive: false }
+    );
+
+    cardEl.addEventListener("touchend", finishDrag);
+    cardEl.addEventListener("touchcancel", finishDrag);
   }
 
   function likeCard(cardEl, movie) {
-    cardEl.style.transform = "translateX(150%) rotate(20deg)";
+    cardEl.style.transition = "";
+    cardEl.offsetHeight;
+    cardEl.style.transition = "transform 0.28s ease-out, opacity 0.28s ease-out";
+    cardEl.style.transform = "translateX(135%) rotate(18deg)";
     cardEl.style.opacity = "0";
     setTimeout(() => {
       likedMovies.push(movie);
+      persistLikeToCloud(movie);
       stackIndex++;
       renderCardsStack();
       if (stackIndex >= currentMovies.length) showPlaceholderOrMatches();
-    }, 250);
+    }, 260);
   }
 
   function nopeCard(cardEl, movie) {
-    cardEl.style.transform = "translateX(-150%) rotate(-20deg)";
+    cardEl.style.transition = "";
+    cardEl.offsetHeight;
+    cardEl.style.transition = "transform 0.28s ease-out, opacity 0.28s ease-out";
+    cardEl.style.transform = "translateX(-135%) rotate(-18deg)";
     cardEl.style.opacity = "0";
     setTimeout(() => {
       stackIndex++;
       renderCardsStack();
       if (stackIndex >= currentMovies.length) showPlaceholderOrMatches();
-    }, 250);
+    }, 260);
   }
 
   function showPlaceholderOrMatches() {
@@ -588,6 +833,7 @@
     const placeholder = $("card-placeholder");
     if (!stack || !placeholder) return;
     stack.querySelectorAll(".movie-card").forEach((el) => el.remove());
+    $("deck-progress")?.classList.add("hidden");
     placeholder.classList.remove("hidden");
     placeholder.classList.remove("card-placeholder--loading");
     placeholder.classList.add("card-placeholder--done");
@@ -605,6 +851,19 @@
     const likesEl = $("swipe-likes");
     if (countEl) countEl.textContent = `${stackIndex}/${currentMovies.length} film`;
     if (likesEl) likesEl.textContent = "❤️ " + likedMovies.length;
+    updateDeckProgress();
+  }
+
+  function updateDeckProgress() {
+    const el = $("deck-progress");
+    if (!el) return;
+    const total = currentMovies.length;
+    if (!total || stackIndex >= total) {
+      el.classList.add("hidden");
+      return;
+    }
+    el.classList.remove("hidden");
+    el.textContent = `${stackIndex + 1} / ${total}`;
   }
 
   function renderMatches() {
@@ -973,6 +1232,85 @@
     sessionSwipeWhy = "";
     showApiHint("");
   });
+
+  function authErrorIt(e) {
+    const c = e && e.code;
+    if (c === "auth/user-not-found") return "Nessun account con questa email. Prova «Crea account».";
+    if (c === "auth/wrong-password") return "Password non corretta.";
+    if (c === "auth/invalid-email") return "Inserisci un’email valida.";
+    if (c === "auth/invalid-credential") return "Email o password non riconosciute.";
+    if (c === "auth/email-already-in-use") return "Questa email è già registrata: usa «Entra».";
+    if (c === "auth/weak-password") return "Scegli una password di almeno 6 caratteri.";
+    return "Qualcosa è andato storto. Riprova tra un attimo.";
+  }
+
+  $("btn-auth-expand")?.addEventListener("click", () => {
+    $("auth-forms")?.classList.toggle("hidden");
+    setAuthMsg("");
+  });
+
+  $("btn-auth-login")?.addEventListener("click", async () => {
+    if (!firebaseConfigured()) return;
+    const email = $("auth-email")?.value?.trim() || "";
+    const pw = $("auth-password")?.value || "";
+    setAuthMsg("");
+    if (!email || !pw) {
+      setAuthMsg("Servono email e password.", true);
+      return;
+    }
+    try {
+      await firebase.auth().signInWithEmailAndPassword(email, pw);
+      setAuthMsg("");
+      $("auth-forms")?.classList.add("hidden");
+    } catch (e) {
+      setAuthMsg(authErrorIt(e), true);
+    }
+  });
+
+  $("btn-auth-register")?.addEventListener("click", async () => {
+    if (!firebaseConfigured()) return;
+    const email = $("auth-email")?.value?.trim() || "";
+    const pw = $("auth-password")?.value || "";
+    setAuthMsg("");
+    if (!email || !pw) {
+      setAuthMsg("Servono email e password.", true);
+      return;
+    }
+    try {
+      await firebase.auth().createUserWithEmailAndPassword(email, pw);
+      setAuthMsg("Account creato. I tuoi like da ora si salvano qui.");
+      $("auth-forms")?.classList.add("hidden");
+    } catch (e) {
+      setAuthMsg(authErrorIt(e), true);
+    }
+  });
+
+  $("btn-auth-logout")?.addEventListener("click", async () => {
+    try {
+      await firebase.auth().signOut();
+    } catch (_) {}
+  });
+
+  $("btn-open-library")?.addEventListener("click", async () => {
+    await renderLibrary();
+    showScreen("screen-library");
+  });
+
+  $("btn-back-from-library")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+  });
+
+  $("btn-library-home")?.addEventListener("click", () => {
+    showScreen("screen-setup");
+    homePicks?.classList.remove("hidden");
+    showSetupChoiceButtons();
+    formStyle?.classList.add("hidden");
+    formSimilar?.classList.add("hidden");
+    formWatch?.classList.add("hidden");
+  });
+
+  initFirebaseIfPossible();
+  updateAuthPanels();
 
   renderMoodChips();
   if (apiKey && apiKey.trim()) {

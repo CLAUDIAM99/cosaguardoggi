@@ -421,6 +421,124 @@ body {
   color: #f5b0bc;
 }
 
+/* ========== AUTH (Firebase opzionale) ========== */
+.auth-strip {
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto 1.35rem;
+  text-align: left;
+}
+.auth-strip.hidden {
+  display: none !important;
+}
+.auth-strip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.auth-strip-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255, 248, 252, 0.88);
+}
+.btn-auth-toggle {
+  padding: 0.45rem 0.9rem;
+  font-size: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 248, 252, 0.28);
+  background: rgba(255, 248, 252, 0.08);
+  color: #fff;
+  font-family: var(--font);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-auth-toggle:hover {
+  background: rgba(255, 248, 252, 0.14);
+}
+.auth-forms {
+  margin-top: 0.85rem;
+}
+.auth-forms.hidden {
+  display: none !important;
+}
+.auth-forms .field-input {
+  margin-bottom: 0.45rem;
+}
+.auth-msg {
+  min-height: 1.25rem;
+  font-size: 0.82rem;
+  color: rgba(255, 248, 252, 0.65);
+  margin: 0.35rem 0;
+}
+.auth-msg-error {
+  color: #f5b0bc;
+}
+.btn-auth-secondary {
+  margin-top: 0.35rem !important;
+}
+.auth-panel-user .btn-primary {
+  margin-top: 0.65rem;
+}
+.auth-user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.auth-user-email {
+  font-size: 0.82rem;
+  color: rgba(255, 248, 252, 0.78);
+  word-break: break-all;
+}
+
+/* ========== LIBRARY ========== */
+.screen-library {
+  padding: 1.25rem 1.25rem 2rem;
+  align-items: center;
+}
+.library-inner {
+  width: 100%;
+  max-width: 440px;
+}
+.library-header {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.25rem;
+}
+.library-header-text h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+  color: #fffaf8;
+}
+.library-header-text p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: rgba(255, 248, 252, 0.72);
+  line-height: 1.45;
+}
+.library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.library-empty {
+  text-align: center;
+  padding: 1.5rem 0.5rem;
+  color: rgba(255, 248, 252, 0.72);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.library-empty.hidden {
+  display: none !important;
+}
+
 /* ========== SWIPE ========== */
 .screen-swipe {
   padding: 1rem 1rem 2rem;
@@ -443,10 +561,42 @@ body {
   position: relative;
   width: 100%;
   max-width: 380px;
-  height: min(620px, calc(100vh - 200px));
-  min-height: 480px;
+  height: min(640px, calc(100vh - 190px));
+  min-height: 500px;
   margin: 0.5rem 0 1rem;
-  perspective: 1000px;
+  perspective: 1200px;
+}
+
+.deck-progress {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 25;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(255, 248, 252, 0.95);
+  background: rgba(42, 34, 48, 0.72);
+  border: 1px solid rgba(255, 248, 252, 0.18);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+.deck-progress.hidden {
+  display: none !important;
+}
+
+.swipe-auth-hint {
+  max-width: 380px;
+  text-align: center;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(255, 248, 252, 0.55);
+  margin: 0.25rem 0 0;
+}
+.swipe-auth-hint.hidden {
+  display: none !important;
 }
 
 .card-placeholder {
@@ -513,22 +663,37 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  cursor: default;
+  cursor: grab;
   user-select: none;
   transition: box-shadow 0.2s;
+  touch-action: pan-y;
 }
-.movie-card.dragging { pointer-events: none; }
+.movie-card:not(.stack-0) {
+  cursor: default;
+}
+.movie-card.stack-0 {
+  transition: transform 0.34s cubic-bezier(0.34, 1.45, 0.64, 1), box-shadow 0.2s;
+}
+.movie-card.stack-0.dragging {
+  transition: none;
+  cursor: grabbing;
+}
+.movie-card.dragging {
+  touch-action: none;
+}
 
 .movie-card .card-poster-wrap {
-  cursor: grab;
+  cursor: inherit;
   width: 100%;
-  height: 200px;
+  height: min(260px, 38vh);
   flex-shrink: 0;
   background: #1a1a1a;
   position: relative;
   overflow: hidden;
 }
-.movie-card .card-poster-wrap:active { cursor: grabbing; }
+.movie-card.stack-0:active {
+  cursor: grabbing;
+}
 
 .movie-card .card-poster {
   width: 100%;
@@ -564,13 +729,13 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.7rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.68rem;
   font-weight: 600;
   text-align: center;
   color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,0.8);
-  background: linear-gradient(transparent, rgba(0,0,0,0.65));
+  background: linear-gradient(transparent, rgba(0,0,0,0.68));
   pointer-events: none;
   z-index: 2;
 }
@@ -707,8 +872,8 @@ body {
 }
 
 .action-btn {
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   border: none;
   display: flex;

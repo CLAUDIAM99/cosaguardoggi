@@ -1,5 +1,15 @@
 // Chiave API TMDB (gratuita): https://www.themoviedb.org/settings/api
-// In produzione meglio usare un backend che espone la chiave.
 window.MOVIE_PICKER_CONFIG = {
-  tmdbApiKey: "" // Inserisci qui la tua API key TMDB
+  tmdbApiKey: "",
+
+  // Opzionale: login e film salvati sul cloud (Firebase).
+  // Console: https://console.firebase.google.com → crea progetto → Authentication (Email)
+  // → Firestore → Deploy regole da firestore.rules (`firebase deploy --only firestore:rules`)
+  firebase: {
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    appId: ""
+    // storageBucket: "" // opzionale
+  }
 };

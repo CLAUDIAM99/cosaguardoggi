@@ -1233,61 +1233,114 @@
     showApiHint("");
   });
 
+  let authUiMode = "login";
+
   function authErrorIt(e) {
     const c = e && e.code;
-    if (c === "auth/user-not-found") return "Nessun account con questa email. Prova «Crea account».";
+    if (c === "auth/user-not-found") return "Nessun account con questa email. Passa a «Registrati».";
     if (c === "auth/wrong-password") return "Password non corretta.";
     if (c === "auth/invalid-email") return "Inserisci un’email valida.";
     if (c === "auth/invalid-credential") return "Email o password non riconosciute.";
-    if (c === "auth/email-already-in-use") return "Questa email è già registrata: usa «Entra».";
+    if (c === "auth/email-already-in-use") return "Questa email è già registrata: usa «Accedi».";
     if (c === "auth/weak-password") return "Scegli una password di almeno 6 caratteri.";
+    if (c === "auth/too-many-requests") return "Troppi tentativi. Aspetta un minuto e riprova.";
     return "Qualcosa è andato storto. Riprova tra un attimo.";
   }
 
-  $("btn-auth-expand")?.addEventListener("click", () => {
-    $("auth-forms")?.classList.toggle("hidden");
+  function setAuthUiMode(mode) {
+    authUiMode = mode;
+    const tLogin = $("tab-login");
+    const tReg = $("tab-register");
+    const wrap = $("auth-password-confirm-wrap");
+    const btnForgot = $("btn-auth-forgot");
+    const submit = $("btn-auth-submit");
+    const hint = $("auth-mode-hint");
+    tLogin?.classList.toggle("auth-tab--active", mode === "login");
+    tReg?.classList.toggle("auth-tab--active", mode === "register");
+    tLogin?.setAttribute("aria-selected", mode === "login" ? "true" : "false");
+    tReg?.setAttribute("aria-selected", mode === "register" ? "true" : "false");
+    wrap?.classList.toggle("hidden", mode !== "register");
+    btnForgot?.classList.toggle("hidden", mode !== "login");
+    if (hint) {
+      hint.textContent =
+        mode === "login"
+          ? "Inserisci email e password per ritrovare i film salvati sul tuo account."
+          : "Scegli email e password (min. 6 caratteri): da ora i ♥ si salvano nel cloud.";
+    }
+    if (submit) submit.textContent = mode === "login" ? "Accedi" : "Crea account";
+    const pc = $("auth-password-confirm");
+    if (pc && mode === "login") pc.value = "";
+    const pwd = $("auth-password");
+    if (pwd) pwd.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
     setAuthMsg("");
-  });
+  }
 
-  $("btn-auth-login")?.addEventListener("click", async () => {
-    if (!firebaseConfigured()) return;
+  $("tab-login")?.addEventListener("click", () => setAuthUiMode("login"));
+  $("tab-register")?.addEventListener("click", () => setAuthUiMode("register"));
+
+  $("auth-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const submitBtn = $("btn-auth-submit");
+    if (!firebaseConfigured() || !firebaseReady) {
+      setAuthMsg("Aggiungi la configurazione Firebase in config.js per accedere.", true);
+      return;
+    }
     const email = $("auth-email")?.value?.trim() || "";
     const pw = $("auth-password")?.value || "";
+    const pw2 = $("auth-password-confirm")?.value || "";
     setAuthMsg("");
     if (!email || !pw) {
-      setAuthMsg("Servono email e password.", true);
+      setAuthMsg("Compila email e password.", true);
+      return;
+    }
+    if (pw.length < 6) {
+      setAuthMsg("La password deve avere almeno 6 caratteri.", true);
+      return;
+    }
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      if (authUiMode === "register") {
+        if (pw !== pw2) {
+          setAuthMsg("Le due password non coincidono.", true);
+          return;
+        }
+        await firebase.auth().createUserWithEmailAndPassword(email, pw);
+        setAuthMsg("Account creato. Benvenuta: i tuoi like da ora restano salvati.");
+      } else {
+        await firebase.auth().signInWithEmailAndPassword(email, pw);
+        setAuthMsg("");
+      }
+      const p = $("auth-password");
+      if (p) p.value = "";
+      const p2 = $("auth-password-confirm");
+      if (p2) p2.value = "";
+    } catch (err) {
+      setAuthMsg(authErrorIt(err), true);
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  $("btn-auth-forgot")?.addEventListener("click", async () => {
+    if (!firebaseConfigured() || !firebaseReady) return;
+    const email = $("auth-email")?.value?.trim() || "";
+    setAuthMsg("");
+    if (!email) {
+      setAuthMsg("Scrivi la tua email nel campo sopra, poi clicca di nuovo qui.", true);
       return;
     }
     try {
-      await firebase.auth().signInWithEmailAndPassword(email, pw);
-      setAuthMsg("");
-      $("auth-forms")?.classList.add("hidden");
-    } catch (e) {
-      setAuthMsg(authErrorIt(e), true);
-    }
-  });
-
-  $("btn-auth-register")?.addEventListener("click", async () => {
-    if (!firebaseConfigured()) return;
-    const email = $("auth-email")?.value?.trim() || "";
-    const pw = $("auth-password")?.value || "";
-    setAuthMsg("");
-    if (!email || !pw) {
-      setAuthMsg("Servono email e password.", true);
-      return;
-    }
-    try {
-      await firebase.auth().createUserWithEmailAndPassword(email, pw);
-      setAuthMsg("Account creato. I tuoi like da ora si salvano qui.");
-      $("auth-forms")?.classList.add("hidden");
-    } catch (e) {
-      setAuthMsg(authErrorIt(e), true);
+      await firebase.auth().sendPasswordResetEmail(email);
+      setAuthMsg("Controlla la posta: ti abbiamo mandato un link per una nuova password.");
+    } catch (err) {
+      setAuthMsg(authErrorIt(err), true);
     }
   });
 
   $("btn-auth-logout")?.addEventListener("click", async () => {
     try {
       await firebase.auth().signOut();
+      setAuthUiMode("login");
     } catch (_) {}
   });
 
@@ -1311,6 +1364,7 @@
 
   initFirebaseIfPossible();
   updateAuthPanels();
+  setAuthUiMode("login");
 
   renderMoodChips();
   if (apiKey && apiKey.trim()) {

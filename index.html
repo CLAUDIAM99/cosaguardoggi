@@ -26,16 +26,55 @@
 
         <div class="auth-strip" id="auth-strip">
           <div id="auth-panel-guest" class="auth-panel-guest">
-            <div class="auth-strip-head">
-              <span class="auth-strip-label">Salva i tuoi film</span>
-              <button type="button" class="btn btn-auth-toggle" id="btn-auth-expand">Accedi o registrati</button>
-            </div>
-            <div id="auth-forms" class="auth-forms hidden">
-              <input type="email" id="auth-email" class="field-input" placeholder="Email" autocomplete="username">
-              <input type="password" id="auth-password" class="field-input" placeholder="Password (min. 6 caratteri)" autocomplete="current-password">
-              <p class="auth-msg" id="auth-msg" role="status"></p>
-              <button type="button" class="btn btn-primary btn-block" id="btn-auth-login">Entra</button>
-              <button type="button" class="btn btn-ghost btn-block btn-auth-secondary" id="btn-auth-register">Crea account</button>
+            <div class="auth-card">
+              <h3 class="auth-card-title">Il tuo account</h3>
+              <p class="auth-card-lead" id="auth-mode-hint">
+                Accedi se hai già un account, oppure registrati per salvare i ♥ sul cloud.
+              </p>
+              <div class="auth-tabs" role="tablist" aria-label="Tipo di accesso">
+                <button type="button" class="auth-tab auth-tab--active" role="tab" id="tab-login" aria-selected="true">
+                  Accedi
+                </button>
+                <button type="button" class="auth-tab" role="tab" id="tab-register" aria-selected="false">
+                  Registrati
+                </button>
+              </div>
+              <form id="auth-form" class="auth-form" novalidate>
+                <label class="auth-label" for="auth-email">Email</label>
+                <input
+                  type="email"
+                  id="auth-email"
+                  name="email"
+                  class="field-input"
+                  autocomplete="email"
+                  inputmode="email"
+                  placeholder="nome@esempio.it"
+                  required>
+                <label class="auth-label" for="auth-password">Password</label>
+                <input
+                  type="password"
+                  id="auth-password"
+                  name="password"
+                  class="field-input"
+                  autocomplete="current-password"
+                  minlength="6"
+                  placeholder="Minimo 6 caratteri"
+                  required>
+                <div id="auth-password-confirm-wrap" class="auth-field-group hidden">
+                  <label class="auth-label" for="auth-password-confirm">Ripeti la password</label>
+                  <input
+                    type="password"
+                    id="auth-password-confirm"
+                    name="password-confirm"
+                    class="field-input"
+                    autocomplete="new-password"
+                    minlength="6"
+                    placeholder="Come sopra">
+                </div>
+                <p class="auth-msg" id="auth-msg" role="status"></p>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-auth-submit">Accedi</button>
+                <button type="button" class="btn-auth-forgot" id="btn-auth-forgot">Password dimenticata?</button>
+              </form>
             </div>
           </div>
           <div id="auth-panel-user" class="auth-panel-user hidden">

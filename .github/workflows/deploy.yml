@@ -17,18 +17,31 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate config.js from secret
+      # Secrets: Settings → Secrets and variables → Actions → Repository secrets.
+      # Variabili d’ambiente con gli stessi nomi del firebaseConfig della Console Firebase (web app).
+      - name: Generate config.js from secrets
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: |
           cat > config.js <<EOF
           // Generato automaticamente dalla GitHub Action
           window.MOVIE_PICKER_CONFIG = {
-            tmdbApiKey: "${TMDB_API_KEY}"
+            tmdbApiKey: "${TMDB_API_KEY}",
+            firebase: {
+              apiKey: "${FIREBASE_API_KEY}",
+              authDomain: "${FIREBASE_AUTH_DOMAIN}",
+              projectId: "${FIREBASE_PROJECT_ID}",
+              appId: "${FIREBASE_APP_ID}"
+            }
           };
           EOF
 

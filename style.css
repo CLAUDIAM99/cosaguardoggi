@@ -421,6 +421,71 @@ body {
   color: #f5b0bc;
 }
 
+/* ========== Gate iniziale (login opzionale) ========== */
+.setup-gate {
+  margin-bottom: 1.75rem;
+  padding: 1.35rem 1.25rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.setup-gate-heading {
+  font-family: "Outfit", system-ui, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+
+.setup-gate-lead {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  opacity: 0.92;
+}
+
+.setup-gate-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.setup-gate-auth-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+}
+
+@media (max-width: 520px) {
+  .setup-gate-auth-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.setup-gate-auth-btn {
+  text-align: center;
+}
+
+.setup-gate-btn-note {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 400;
+  opacity: 0.72;
+  letter-spacing: 0.02em;
+  margin-top: 0.15rem;
+}
+
+.setup-gate-off {
+  margin: 1rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+
+.setup-after-gate.hidden {
+  display: none;
+}
+
 /* ========== AUTH (Firebase opzionale) ========== */
 .auth-strip {
   width: 100%;

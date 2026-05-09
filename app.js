@@ -1,6 +1,9 @@
 (function () {
   "use strict";
 
+  /** Memorizza che l’utente ha già scelto sulla schermata iniziale (stessa sessione / tab). */
+  const SETUP_GATE_STORAGE_KEY = "mp_setup_gate_v1";
+
   const BASE = "https://api.themoviedb.org/3";
   const IMG_BASE = "https://image.tmdb.org/t/p/w500";
   const IMG_LOGO = "https://image.tmdb.org/t/p/w45";
@@ -144,20 +147,30 @@
   }
 
   function setAuthMsg(text, isError) {
-    const el = $("auth-msg");
+    const el = document.getElementById("auth-msg");
     if (!el) return;
     el.textContent = text || "";
     el.classList.toggle("auth-msg-error", !!isError);
   }
 
+  function syncFirebaseGateButtons() {
+    const row = document.getElementById("setup-gate-auth-row");
+    const off = document.getElementById("setup-gate-firebase-off");
+    if (!row || !off) return;
+    const ok = firebaseConfigured();
+    row.classList.toggle("hidden", !ok);
+    off.classList.toggle("hidden", ok);
+  }
+
   function updateAuthPanels() {
-    const strip = $("auth-strip");
-    const guest = $("auth-panel-guest");
-    const userP = $("auth-panel-user");
-    const swipeHint = $("swipe-auth-hint");
+    const strip = document.getElementById("auth-strip");
+    const guest = document.getElementById("auth-panel-guest");
+    const userP = document.getElementById("auth-panel-user");
+    const swipeHint = document.getElementById("swipe-auth-hint");
     if (!firebaseConfigured() || !firebaseReady) {
       strip?.classList.add("hidden");
       swipeHint?.classList.add("hidden");
+      syncFirebaseGateButtons();
       return;
     }
     strip?.classList.remove("hidden");
@@ -165,12 +178,13 @@
     if (firebaseUser) {
       guest?.classList.add("hidden");
       userP?.classList.remove("hidden");
-      const em = $("auth-user-email");
+      const em = document.getElementById("auth-user-email");
       if (em) em.textContent = firebaseUser.email || "Account attivo";
     } else {
       guest?.classList.remove("hidden");
       userP?.classList.add("hidden");
     }
+    syncFirebaseGateButtons();
   }
 
   async function persistLikeToCloud(movie) {
@@ -251,6 +265,18 @@
     const el = $(id);
     if (el) el.classList.add("active");
   };
+
+  function applySetupGateVisibility() {
+    const gate = $("setup-gate");
+    const main = $("setup-after-gate");
+    if (!gate || !main) return;
+    if (sessionStorage.getItem(SETUP_GATE_STORAGE_KEY) === "1") {
+      gate.classList.add("hidden");
+      main.classList.remove("hidden");
+    }
+  }
+
+  applySetupGateVisibility();
 
   function showApiHint(msg, isError) {
     const el = $("api-hint");
@@ -1278,6 +1304,23 @@
   $("tab-login")?.addEventListener("click", () => setAuthUiMode("login"));
   $("tab-register")?.addEventListener("click", () => setAuthUiMode("register"));
 
+  function dismissSetupGate(openAuth) {
+    sessionStorage.setItem(SETUP_GATE_STORAGE_KEY, "1");
+    $("setup-gate")?.classList.add("hidden");
+    $("setup-after-gate")?.classList.remove("hidden");
+    if (openAuth === "login") {
+      setAuthUiMode("login");
+      $("auth-strip")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else if (openAuth === "register") {
+      setAuthUiMode("register");
+      $("auth-strip")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  $("btn-gate-continue")?.addEventListener("click", () => dismissSetupGate(null));
+  $("btn-gate-login")?.addEventListener("click", () => dismissSetupGate("login"));
+  $("btn-gate-register")?.addEventListener("click", () => dismissSetupGate("register"));
+
   $("auth-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const submitBtn = $("btn-auth-submit");
@@ -1364,6 +1407,7 @@
 
   initFirebaseIfPossible();
   updateAuthPanels();
+  syncFirebaseGateButtons();
   setAuthUiMode("login");
 
   renderMoodChips();

@@ -24,6 +24,32 @@
           <p class="setup-subtitle">Tre modi semplici per scegliere un film o un cartone — e capire subito dove vederlo in Italia. Account opzionale: salva i like nel cloud e ritrovali su ogni dispositivo.</p>
         </header>
 
+        <!-- Prima della home: login opzionale esplicito -->
+        <div class="setup-gate" id="setup-gate" aria-labelledby="setup-gate-heading">
+          <h2 class="setup-gate-heading" id="setup-gate-heading">Come vuoi continuare?</h2>
+          <p class="setup-gate-lead">
+            Puoi iniziare subito senza account. <strong>Accedi</strong> o <strong>registrati</strong> solo se vuoi salvare i ♥ sul cloud e ritrovarli su altri dispositivi.
+          </p>
+          <div class="setup-gate-actions">
+            <button type="button" class="btn btn-primary btn-block" id="btn-gate-continue">
+              Continua senza fare login
+            </button>
+            <div class="setup-gate-auth-row hidden" id="setup-gate-auth-row">
+              <button type="button" class="btn btn-ghost btn-block setup-gate-auth-btn" id="btn-gate-login">
+                Accedi <span class="setup-gate-btn-note">Sign in</span>
+              </button>
+              <button type="button" class="btn btn-ghost btn-block setup-gate-auth-btn" id="btn-gate-register">
+                Registrati <span class="setup-gate-btn-note">Sign up</span>
+              </button>
+            </div>
+          </div>
+          <p class="setup-gate-off hidden" id="setup-gate-firebase-off">
+            Salvataggio account non attivo (manca la configurazione Firebase): puoi comunque usare tutta l’app.
+          </p>
+        </div>
+
+        <div class="setup-after-gate hidden" id="setup-after-gate">
+
         <div class="auth-strip" id="auth-strip">
           <div id="auth-panel-guest" class="auth-panel-guest">
             <div class="auth-card">
@@ -190,6 +216,8 @@
 
         <p class="setup-api-hint" id="api-hint" role="status" aria-live="polite"></p>
         <p class="home-footnote">Film da <abbr title="The Movie Database">TMDB</abbr> · Login opzionale (Firebase) · Funziona su GitHub Pages</p>
+
+        </div><!-- /.setup-after-gate -->
       </div>
     </section>
 

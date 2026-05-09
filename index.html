@@ -48,8 +48,31 @@
           </p>
         </div>
 
+        <div
+          class="gate-modal-overlay hidden"
+          id="gate-modal-overlay"
+          aria-hidden="true">
+          <div class="gate-modal-backdrop" id="gate-modal-backdrop" aria-hidden="true"></div>
+          <div
+            class="gate-modal"
+            id="gate-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gate-modal-title"
+            tabindex="-1">
+            <div class="gate-modal-header">
+              <h2 class="gate-modal-title" id="gate-modal-title">Accedi o registrati</h2>
+              <button type="button" class="gate-modal-close" id="gate-modal-close" aria-label="Chiudi">
+                ×
+              </button>
+            </div>
+            <div class="gate-modal-body" id="gate-modal-body"></div>
+          </div>
+        </div>
+
         <div class="setup-after-gate hidden" id="setup-after-gate">
 
+        <div class="auth-strip-slot" id="auth-strip-slot">
         <div class="auth-strip" id="auth-strip">
           <div id="auth-panel-guest" class="auth-panel-guest">
             <div class="auth-card">
@@ -111,6 +134,7 @@
             <button type="button" class="btn btn-primary btn-block" id="btn-open-library">I miei film salvati</button>
           </div>
         </div>
+        </div><!-- /#auth-strip-slot -->
 
         <div class="home-picks" id="home-picks">
           <section class="mood-block" aria-labelledby="mood-heading">

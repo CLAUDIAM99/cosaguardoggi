@@ -486,6 +486,124 @@ body {
   display: none;
 }
 
+/* ========== Gate auth modal (glass) ========== */
+.gate-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gate-modal-overlay.hidden {
+  display: none !important;
+}
+
+.gate-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  background: rgba(22, 16, 28, 0.62);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.gate-modal {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  margin: auto;
+  text-align: left;
+  border-radius: var(--card-radius);
+  background: linear-gradient(
+    155deg,
+    rgba(255, 252, 250, 0.14) 0%,
+    rgba(255, 246, 250, 0.09) 45%,
+    rgba(52, 42, 56, 0.42) 100%
+  );
+  border: 1px solid rgba(255, 248, 252, 0.26);
+  box-shadow:
+    0 28px 64px rgba(18, 12, 24, 0.55),
+    inset 0 1px 0 rgba(255, 252, 252, 0.12);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.gate-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.15rem 0 1.25rem;
+}
+
+.gate-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.28rem;
+  font-weight: 600;
+  font-style: italic;
+  margin: 0;
+  line-height: 1.2;
+  color: #fffaf8;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.25);
+}
+
+.gate-modal-close {
+  flex-shrink: 0;
+  width: 2.35rem;
+  height: 2.35rem;
+  margin: -0.25rem -0.15rem 0 0;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  font-family: var(--font);
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(255, 248, 252, 0.82);
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.gate-modal-close:hover {
+  background: rgba(255, 252, 252, 0.14);
+  color: #fff;
+}
+
+.gate-modal-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gate-modal-body {
+  padding: 0.65rem 1.25rem 1.35rem;
+}
+
+.gate-modal-body .auth-strip {
+  margin-bottom: 0;
+  max-width: none;
+}
+
+body.gate-modal-open {
+  overflow: hidden;
+}
+
+.auth-strip-slot {
+  min-height: 0;
+}
+
 /* ========== AUTH (Firebase opzionale) ========== */
 .auth-strip {
   width: 100%;

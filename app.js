@@ -1304,22 +1304,86 @@
   $("tab-login")?.addEventListener("click", () => setAuthUiMode("login"));
   $("tab-register")?.addEventListener("click", () => setAuthUiMode("register"));
 
-  function dismissSetupGate(openAuth) {
+  let gateModalEscapeHandler = null;
+  /** @type {Element | null} */
+  let gateModalPreviousFocus = null;
+
+  function openGateModal(mode) {
+    if (!firebaseConfigured()) return;
+    const overlay = $("gate-modal-overlay");
+    const bodyEl = $("gate-modal-body");
+    const strip = $("auth-strip");
+    const slot = $("auth-strip-slot");
+    if (!overlay || !bodyEl || !strip || !slot) return;
+    if (!overlay.classList.contains("hidden")) return;
+
+    gateModalPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    bodyEl.appendChild(strip);
+    setAuthUiMode(mode === "register" ? "register" : "login");
+
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("gate-modal-open");
+
+    gateModalEscapeHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeGateModal();
+      }
+    };
+    document.addEventListener("keydown", gateModalEscapeHandler);
+
+    requestAnimationFrame(() => {
+      const email = $("auth-email");
+      if (email) email.focus();
+      else $("gate-modal-close")?.focus();
+    });
+  }
+
+  /** @param {{ restoreFocus?: boolean }} [opts] */
+  function closeGateModal(opts) {
+    const overlay = $("gate-modal-overlay");
+    const bodyEl = $("gate-modal-body");
+    const slot = $("auth-strip-slot");
+    const strip = $("auth-strip");
+    if (!overlay || overlay.classList.contains("hidden")) return;
+
+    const restoreFocus = !opts || opts.restoreFocus !== false;
+
+    if (gateModalEscapeHandler) {
+      document.removeEventListener("keydown", gateModalEscapeHandler);
+      gateModalEscapeHandler = null;
+    }
+    document.body.classList.remove("gate-modal-open");
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden", "true");
+
+    if (strip && slot && bodyEl && strip.parentElement === bodyEl) {
+      slot.appendChild(strip);
+    }
+
+    if (
+      restoreFocus &&
+      gateModalPreviousFocus &&
+      typeof gateModalPreviousFocus.focus === "function"
+    ) {
+      gateModalPreviousFocus.focus();
+    }
+    gateModalPreviousFocus = null;
+  }
+
+  function dismissSetupGate() {
     sessionStorage.setItem(SETUP_GATE_STORAGE_KEY, "1");
     $("setup-gate")?.classList.add("hidden");
     $("setup-after-gate")?.classList.remove("hidden");
-    if (openAuth === "login") {
-      setAuthUiMode("login");
-      $("auth-strip")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    } else if (openAuth === "register") {
-      setAuthUiMode("register");
-      $("auth-strip")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
   }
 
-  $("btn-gate-continue")?.addEventListener("click", () => dismissSetupGate(null));
-  $("btn-gate-login")?.addEventListener("click", () => dismissSetupGate("login"));
-  $("btn-gate-register")?.addEventListener("click", () => dismissSetupGate("register"));
+  $("btn-gate-continue")?.addEventListener("click", () => dismissSetupGate());
+  $("btn-gate-login")?.addEventListener("click", () => openGateModal("login"));
+  $("btn-gate-register")?.addEventListener("click", () => openGateModal("register"));
+
+  $("gate-modal-backdrop")?.addEventListener("click", () => closeGateModal());
+  $("gate-modal-close")?.addEventListener("click", () => closeGateModal());
 
   $("auth-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -1352,6 +1416,15 @@
       } else {
         await firebase.auth().signInWithEmailAndPassword(email, pw);
         setAuthMsg("");
+      }
+      const overlay = $("gate-modal-overlay");
+      const modalWasOpen = !!(overlay && !overlay.classList.contains("hidden"));
+      if (modalWasOpen) {
+        closeGateModal({ restoreFocus: false });
+        dismissSetupGate();
+        requestAnimationFrame(() =>
+          $("mood-chips")?.querySelector(".mood-chip")?.focus()
+        );
       }
       const p = $("auth-password");
       if (p) p.value = "";

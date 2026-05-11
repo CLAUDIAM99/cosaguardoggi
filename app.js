@@ -16,6 +16,7 @@
     { id: 35, name: "Commedia" },
     { id: 80, name: "Crime" },
     { id: 99, name: "Documentario" },
+    { id: 10759, name: "Sport" },
     { id: 18, name: "Dramma" },
     { id: 10751, name: "Famiglia" },
     { id: 14, name: "Fantasy" },
@@ -170,9 +171,11 @@
     if (!firebaseConfigured() || !firebaseReady) {
       strip?.classList.add("hidden");
       swipeHint?.classList.add("hidden");
+      $("auth-google-block")?.classList.add("hidden");
       syncFirebaseGateButtons();
       return;
     }
+    $("auth-google-block")?.classList.remove("hidden");
     strip?.classList.remove("hidden");
     swipeHint?.classList.toggle("hidden", !!firebaseUser);
     if (firebaseUser) {
@@ -334,8 +337,20 @@
     };
   }
 
+  function readSelectedGenreIds() {
+    const wrap = $("genre-chips");
+    if (!wrap) return genreIds.slice();
+    return Array.from(wrap.querySelectorAll(".chip.selected")).map((e) => +e.dataset.id);
+  }
+
+  function buildWithGenresParam(ids) {
+    if (!ids || !ids.length) return null;
+    if (ids.length === 1) return String(ids[0]);
+    return ids.join("|");
+  }
+
   async function loadDiscover() {
-    const withGenres = genreIds.length ? genreIds.join(",") : null;
+    const withGenres = buildWithGenresParam(genreIds);
     const params = { sort_by: "popularity.desc", page: 1, watch_region: "IT" };
     if (withGenres) params.with_genres = withGenres;
     if (yearFilter) {
@@ -580,7 +595,7 @@
     wrap.querySelectorAll(".chip").forEach((btn) => {
       btn.addEventListener("click", () => {
         btn.classList.toggle("selected");
-        genreIds = Array.from(wrap.querySelectorAll(".chip.selected")).map((e) => +e.dataset.id);
+        genreIds = readSelectedGenreIds();
       });
     });
     syncGenreChipSelection();
@@ -1035,6 +1050,7 @@
 
   $("btn-start-style")?.addEventListener("click", async () => {
     if (!checkApiKey()) return;
+    genreIds = readSelectedGenreIds();
     let ids = genreIds.length ? [...genreIds] : [35, 18, 16];
     if (!includeAnimation) ids = ids.filter((id) => id !== 16);
     genreIds = ids;
@@ -1270,7 +1286,32 @@
     if (c === "auth/email-already-in-use") return "Questa email è già registrata: usa «Accedi».";
     if (c === "auth/weak-password") return "Scegli una password di almeno 6 caratteri.";
     if (c === "auth/too-many-requests") return "Troppi tentativi. Aspetta un minuto e riprova.";
+    if (c === "auth/popup-closed-by-user") return "Accesso annullato: hai chiuso la finestra di Google.";
+    if (c === "auth/popup-blocked-by-browser" || c === "auth/popup-blocked")
+      return "Il browser ha bloccato la finestra di accesso: consenti i popup per questo sito e riprova, oppure usa email e password.";
+    if (c === "auth/account-exists-with-different-credential")
+      return "Esiste già un account con questa email registrato in altro modo: accedi con email e password, oppure usa la Console Firebase per collegare gli accessi.";
+    if (c === "auth/operation-not-allowed")
+      return "Accesso con Google non attivo: abilita il provider Google in Firebase Console → Authentication → Sign-in method.";
+    if (c === "auth/network-request-failed") return "Errore di rete. Controlla la connessione e riprova.";
+    if (c === "auth/cancelled-popup-request")
+      return "È già in corso un altro accesso. Chiudi le altre finestre e riprova.";
+    if (c === "auth/user-disabled") return "Questo account è stato disabilitato.";
     return "Qualcosa è andato storto. Riprova tra un attimo.";
+  }
+
+  function handleSuccessfulAuthUiCleanup() {
+    const overlay = $("gate-modal-overlay");
+    const modalWasOpen = !!(overlay && !overlay.classList.contains("hidden"));
+    if (modalWasOpen) {
+      closeGateModal({ restoreFocus: false });
+      dismissSetupGate();
+      requestAnimationFrame(() => $("mood-chips")?.querySelector(".mood-chip")?.focus());
+    }
+    const p = $("auth-password");
+    if (p) p.value = "";
+    const p2 = $("auth-password-confirm");
+    if (p2) p2.value = "";
   }
 
   function setAuthUiMode(mode) {
@@ -1417,23 +1458,29 @@
         await firebase.auth().signInWithEmailAndPassword(email, pw);
         setAuthMsg("");
       }
-      const overlay = $("gate-modal-overlay");
-      const modalWasOpen = !!(overlay && !overlay.classList.contains("hidden"));
-      if (modalWasOpen) {
-        closeGateModal({ restoreFocus: false });
-        dismissSetupGate();
-        requestAnimationFrame(() =>
-          $("mood-chips")?.querySelector(".mood-chip")?.focus()
-        );
-      }
-      const p = $("auth-password");
-      if (p) p.value = "";
-      const p2 = $("auth-password-confirm");
-      if (p2) p2.value = "";
+      handleSuccessfulAuthUiCleanup();
     } catch (err) {
       setAuthMsg(authErrorIt(err), true);
     } finally {
       if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+
+  $("btn-auth-google")?.addEventListener("click", async () => {
+    if (!firebaseConfigured() || !firebaseReady) return;
+    const btn = $("btn-auth-google");
+    setAuthMsg("");
+    if (btn) btn.disabled = true;
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      // Popup è lo standard su GitHub Pages; se è bloccato, authErrorIt suggerisce i popup o email/password (alternativa: signInWithRedirect + getRedirectResult).
+      await firebase.auth().signInWithPopup(provider);
+      setAuthMsg("");
+      handleSuccessfulAuthUiCleanup();
+    } catch (err) {
+      setAuthMsg(authErrorIt(err), true);
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 

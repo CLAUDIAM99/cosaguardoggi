@@ -662,6 +662,46 @@ body.gate-modal-open {
   color: #fff;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
+.auth-google-block {
+  margin-bottom: 0;
+}
+.auth-google-block.hidden {
+  display: none !important;
+}
+.btn-auth-google {
+  gap: 0.55rem;
+  margin-top: 0;
+  border: 1px solid rgba(255, 248, 252, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+}
+.btn-auth-google:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 248, 252, 0.35);
+}
+.btn-auth-google-icon {
+  flex-shrink: 0;
+}
+.auth-email-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.85rem 0 0.85rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 248, 252, 0.45);
+}
+.auth-email-divider::before,
+.auth-email-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 248, 252, 0.14);
+}
+.auth-email-divider span {
+  white-space: nowrap;
+}
 .auth-form .field-input {
   margin-bottom: 0.5rem;
 }

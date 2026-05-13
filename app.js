@@ -43,6 +43,11 @@
   let likedMovies = [];
   let stackIndex = 0;
   const watchProvidersCardCache = new Map();
+  const PROVIDER_FILTER_MONETIZATION_KEYS = ["flatrate", "ads", "free"];
+  const DISCOVER_PROVIDER_MONETIZATION_TYPES = "flatrate|ads|free";
+  const DISCOVER_PROVIDER_TARGET_COUNT = 20;
+  const DISCOVER_PROVIDER_MAX_PAGES = 6;
+  const WATCH_PROVIDER_VERIFY_BATCH_SIZE = 5;
   /** Testo "perché" mostrato sulle card swipe e sui match (sessione). */
   let sessionSwipeWhy = "";
 
@@ -349,9 +354,56 @@
     return ids.join("|");
   }
 
-  async function loadDiscover() {
+  function providerIdsFromIT(providersIT, monetizationKeys) {
+    const ids = new Set();
+    if (!providersIT) return ids;
+    monetizationKeys.forEach((key) => {
+      (providersIT[key] || []).forEach((p) => {
+        if (p && p.provider_id != null) ids.add(p.provider_id);
+      });
+    });
+    return ids;
+  }
+
+  function movieAvailableOnSelectedProviders(providersIT, selectedProviderIds) {
+    if (!selectedProviderIds.length) return true;
+    if (!providersIT) return false;
+    const available = providerIdsFromIT(providersIT, PROVIDER_FILTER_MONETIZATION_KEYS);
+    return selectedProviderIds.some((id) => available.has(id));
+  }
+
+  async function getWatchProvidersITCached(movieId) {
+    if (watchProvidersCardCache.has(movieId)) {
+      return watchProvidersCardCache.get(movieId);
+    }
+    const it = await loadWatchProviders(movieId);
+    watchProvidersCardCache.set(movieId, it);
+    return it;
+  }
+
+  async function verifyMoviesOnSelectedProviders(movies, selectedProviderIds) {
+    const verified = [];
+    const seen = new Set();
+    for (let i = 0; i < movies.length; i += WATCH_PROVIDER_VERIFY_BATCH_SIZE) {
+      const batch = movies.slice(i, i + WATCH_PROVIDER_VERIFY_BATCH_SIZE);
+      const checks = await Promise.all(
+        batch.map(async (movie) => {
+          const providersIT = await getWatchProvidersITCached(movie.id);
+          return movieAvailableOnSelectedProviders(providersIT, selectedProviderIds) ? movie : null;
+        })
+      );
+      checks.forEach((movie) => {
+        if (!movie || seen.has(movie.id)) return;
+        seen.add(movie.id);
+        verified.push(movie);
+      });
+    }
+    return verified;
+  }
+
+  function buildDiscoverParams(page) {
     const withGenres = buildWithGenresParam(genreIds);
-    const params = { sort_by: "popularity.desc", page: 1, watch_region: "IT" };
+    const params = { sort_by: "popularity.desc", page, watch_region: "IT" };
     if (withGenres) params.with_genres = withGenres;
     if (yearFilter) {
       params["primary_release_date.gte"] = `${yearFilter}-01-01`;
@@ -362,19 +414,41 @@
     }
     if (providerIds.length) {
       params.with_watch_providers = providerIds.join("|");
-      params.with_watch_monetization_types = "flatrate|ads|buy|rent";
+      params.with_watch_monetization_types = DISCOVER_PROVIDER_MONETIZATION_TYPES;
     }
-    const data = await tmdb("/discover/movie", params);
-    let movies = (data.results || []).map(normalizeMovie);
-    if (!movies.length && providerIds.length) {
-      // fallback: se nessun titolo su queste piattaforme, riprova senza filtro piattaforme
-      showApiHint("Su quelle piattaforme non c’è nulla con questi filtri: ti mostriamo anche altri servizi, ok?", true);
-      delete params.with_watch_providers;
-      delete params.with_watch_monetization_types;
-      const dataFallback = await tmdb("/discover/movie", params);
-      movies = (dataFallback.results || []).map(normalizeMovie);
+    return params;
+  }
+
+  async function loadDiscover() {
+    if (!providerIds.length) {
+      const data = await tmdb("/discover/movie", buildDiscoverParams(1));
+      return (data.results || []).map(normalizeMovie);
     }
-    return movies;
+
+    const selectedProviderIds = providerIds.slice();
+    const verified = [];
+    const seen = new Set();
+    let page = 1;
+    let totalPages = 1;
+
+    while (verified.length < DISCOVER_PROVIDER_TARGET_COUNT && page <= DISCOVER_PROVIDER_MAX_PAGES) {
+      const data = await tmdb("/discover/movie", buildDiscoverParams(page));
+      totalPages = data.total_pages || 1;
+      const candidates = (data.results || []).map(normalizeMovie).filter((movie) => !seen.has(movie.id));
+      candidates.forEach((movie) => seen.add(movie.id));
+      if (!candidates.length) break;
+
+      const batchVerified = await verifyMoviesOnSelectedProviders(candidates, selectedProviderIds);
+      batchVerified.forEach((movie) => {
+        if (verified.length >= DISCOVER_PROVIDER_TARGET_COUNT || verified.some((m) => m.id === movie.id)) return;
+        verified.push(movie);
+      });
+
+      if (page >= totalPages) break;
+      page++;
+    }
+
+    return verified;
   }
 
   async function searchMovie(query) {

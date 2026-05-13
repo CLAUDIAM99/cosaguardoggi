@@ -405,6 +405,7 @@
     const withGenres = buildWithGenresParam(genreIds);
     const params = { sort_by: "popularity.desc", page, watch_region: "IT" };
     if (withGenres) params.with_genres = withGenres;
+    if (!includeAnimation) params.without_genres = "16";
     if (yearFilter) {
       params["primary_release_date.gte"] = `${yearFilter}-01-01`;
     }
@@ -519,6 +520,9 @@
     if (ratingFilterSimilar) {
       const min = Number(ratingFilterSimilar);
       movies = movies.filter((m) => (m.rating || 0) >= min);
+    }
+    if (!includeAnimation) {
+      movies = movies.filter((m) => !(m.genre_ids || []).includes(16));
     }
 
     movies.sort((a, b) => {
@@ -1424,7 +1428,13 @@
   let gateModalPreviousFocus = null;
 
   function openGateModal(mode) {
-    if (!firebaseConfigured()) return;
+    if (!firebaseConfigured()) {
+      showApiHint(
+        "Per usare Accedi o Registrati completa Firebase in config.js (apiKey e projectId del progetto web).",
+        true
+      );
+      return;
+    }
     const overlay = $("gate-modal-overlay");
     const bodyEl = $("gate-modal-body");
     const strip = $("auth-strip");
@@ -1434,7 +1444,14 @@
 
     gateModalPreviousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     bodyEl.appendChild(strip);
+    strip.classList.remove("hidden");
     setAuthUiMode(mode === "register" ? "register" : "login");
+    if (!firebaseReady) {
+      setAuthMsg(
+        "Firebase non si è avviato (errore di configurazione o di rete). Controlla config.js e la console del browser, poi ricarica.",
+        true
+      );
+    }
 
     overlay.classList.remove("hidden");
     overlay.setAttribute("aria-hidden", "false");
@@ -1477,6 +1494,8 @@
       slot.appendChild(strip);
     }
 
+    updateAuthPanels();
+
     if (
       restoreFocus &&
       gateModalPreviousFocus &&
@@ -1503,8 +1522,15 @@
   $("auth-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const submitBtn = $("btn-auth-submit");
-    if (!firebaseConfigured() || !firebaseReady) {
-      setAuthMsg("Aggiungi la configurazione Firebase in config.js per accedere.", true);
+    if (!firebaseConfigured()) {
+      setAuthMsg("Aggiungi la configurazione Firebase in config.js (apiKey e projectId) per accedere.", true);
+      return;
+    }
+    if (!firebaseReady) {
+      setAuthMsg(
+        "Firebase non è pronto. Controlla config.js e la console del browser, poi ricarica la pagina.",
+        true
+      );
       return;
     }
     const email = $("auth-email")?.value?.trim() || "";
@@ -1541,7 +1567,17 @@
   });
 
   $("btn-auth-google")?.addEventListener("click", async () => {
-    if (!firebaseConfigured() || !firebaseReady) return;
+    if (!firebaseConfigured()) {
+      setAuthMsg("Configura Firebase in config.js per usare l’accesso con Google.", true);
+      return;
+    }
+    if (!firebaseReady) {
+      setAuthMsg(
+        "Firebase non è pronto. Controlla config.js e la console del browser, poi ricarica la pagina.",
+        true
+      );
+      return;
+    }
     const btn = $("btn-auth-google");
     setAuthMsg("");
     if (btn) btn.disabled = true;
